@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leilão — DD Clássico</title>
+<style>
+  :root {
+    /* Panel wood, from the page background up to the lit frame. */
+    --wood-900: #170d06;
+    --wood-800: #241509;
+    --wood-700: #38220f;
+    --wood-600: #523219;
+    --wood-500: #774a25;
+    --wood-400: #96622f;
+
+    /* Gold for borders, headings and active states. */
+    --gold-100: #fff4d4;
+    --gold-300: #f2d894;
+    --gold-400: #e8c268;
+    --gold-500: #c9a04a;
+    --gold-700: #8a6a2c;
+
+    /* Parchment for reading surfaces. */
+    --parch-100: #f4e9d1;
+    --parch-200: #e3cfa8;
+    --parch-300: #cfb488;
+    --parch-400: #b99b6d;
+
+    --ink:      #2a1a0c;
+    --ink-soft: #6d5639;
+
+    --accent: #f5a623;   /* warm orange of the game's action buttons */
+    --danger: #b03a2e;
+
+    /* The font stack lives here and is always applied through font-family, never
+       through the `font` shorthand: the shorthand drops the whole declaration
+       when the family comes from `inherit`, and is inconsistent with var(). */
+    --ui: "Segoe UI", Roboto, Tahoma, sans-serif;
+
+    --radius:    12px;
+    --radius-sm: 7px;
+
+    /* A metal edge is always two lines: the dark outer one that cuts it from the
+       background, and the light inner one that fakes the sheen. */
+    --edge: 1px solid var(--gold-700);
+    --edge-inner: inset 0 0 0 1px rgba(232, 194, 104, .16);
+    --ring: 0 0 0 3px rgba(232, 194, 104, .3);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    /* dvh follows the address bar that hides/shows on mobile; a browser that
+       does not know dvh skips the line and keeps the 100%. */
+    height: 100dvh;
+    overflow: hidden;          /* the window never scrolls; the panels do */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 16px;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, #55351a 0%, transparent 70%),
+      radial-gradient(ellipse at bottom, #2c1a0c 0%, var(--wood-900) 75%);
+    font-size: 14px;
+    line-height: 1.45;
+    font-family: var(--ui);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- skeleton ---- */
+
+  /* The masthead sits above the card, so the column owns the height budget and
+     .app takes whatever is left — that keeps the table as the only thing that
+     scrolls. The column is exactly as wide as the table, so centring it centres
+     the title and the table together. */
+  .page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+    max-width: 904px;
+    max-height: 100%;
+    min-height: 0;
+  }
+
+  /* Stacked is the base case: the panel is a drawer above the table. The side
+     column is the exception, added back only when the screen is wide enough
+     (see the min-width block below). */
+  .app {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+  }
+
+  .frame {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    background: linear-gradient(170deg, var(--wood-500), var(--wood-700) 65%, var(--wood-800));
+    border: var(--edge);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .55), var(--edge-inner);
+  }
+
+  /* ---- masthead ---- */
+
+  .masthead {
+    flex: 0 0 auto;
+    text-align: center;
+  }
+
+  /* Hairlines that fade outward from the wordmark, the way the game frames its
+     section headings. */
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 0 0 7px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 5px;
+    text-indent: 5px;
+    text-transform: uppercase;
+    color: var(--gold-500);
+  }
+
+  .brand::before,
+  .brand::after {
+    content: "";
+    width: 54px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-700));
+  }
+
+  .brand::after { transform: scaleX(-1); }
+
+  .masthead h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 9px;
+    /* Letter-spacing also trails the last glyph, which drags a centred line
+       left by half a step; the indent pays it back. */
+    text-indent: 9px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--gold-400);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, .85);
+  }
+
+  /* Polished-gold fill. Guarded, because without background-clip support the
+     transparent colour would erase the title instead of styling it. */
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    .masthead h1 {
+      background: linear-gradient(180deg, var(--gold-100), var(--gold-400) 45%, #b07f2c);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: none;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .85));
+    }
+  }
+
+  /* ---- search ---- */
+  .search {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  /* An item name is longer than a nickname, so it gets more room. */
+  #searchInput { flex: 2 1 0; }
+  #sellerInput { flex: 1 1 0; }
+
+  input[type="text"] {
+    min-width: 0;
+    padding: 9px 12px;
+    border: var(--edge);
+    border-radius: var(--radius-sm);
+    background: var(--parch-100);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.2;
+    font-family: var(--ui);
+    box-shadow: inset 0 2px 4px rgba(90, 58, 28, .28);
+    transition: box-shadow .15s, border-color .15s;
+  }
+
+  input[type="text"]::placeholder { color: var(--ink-soft); }
+
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--gold-400);
+    box-shadow: inset 0 2px 4px rgba(90, 58, 28, .2), var(--ring);
+  }
+
+  button {
+    border: var(--edge);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1;
+    font-family: var(--ui);
+    color: #2b1806;
+    cursor: pointer;
+    transition: filter .15s, box-shadow .15s, transform .05s;
+  }
+
+  button:focus-visible { outline: none; box-shadow: var(--ring); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .35; cursor: default; }
+
+  .btn {
+    padding: 9px 18px;
+    background: linear-gradient(180deg, var(--gold-300), var(--accent) 55%, #c07d17);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 2px 6px rgba(0, 0, 0, .35);
+  }
+
+  .btn:hover:not(:disabled) { filter: brightness(1.08); }
+
+  /* ---- table ---- */
+  /* Scrolling lives here, not on the body. The min-height:0 is mandatory:
+     without it a flex child refuses to shrink below its content and the
+     scrollbar disappears. */
+  .table-wrap {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;          /* safety net on very narrow screens */
+    background: var(--parch-200);
+    border: 1px solid var(--wood-800);
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 3px 10px rgba(90, 58, 28, .3);
+  }
+
+  .scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, .18); }
+  .scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--gold-500), var(--wood-500));
+    border-radius: 5px;
+  }
+  .scroll::-webkit-scrollbar-thumb:hover { background: var(--gold-400); }
+  .scroll { scrollbar-width: thin; scrollbar-color: var(--gold-500) rgba(0, 0, 0, .18); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    /* With border-collapse the header border vanishes once it sticks; the inset
+       shadow puts it back. */
+    box-shadow: inset 0 -2px 0 var(--gold-700);
+    padding: 10px 12px;
+    background: linear-gradient(180deg, var(--wood-600), var(--wood-800));
+    color: var(--gold-400);
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1.2;
+    font-family: var(--ui);
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  th.sortable { cursor: pointer; transition: color .15s; }
+  th.sortable:hover { color: var(--gold-100); }
+  th .arrow { opacity: .4; font-size: 9px; }
+  th.active { color: var(--gold-100); }
+  th.active .arrow { opacity: 1; }
+
+  td {
+    padding: 9px 12px;
+    border-top: 1px solid rgba(90, 58, 28, .22);
+  }
+
+  tbody tr { transition: background .12s; }
+  tbody tr:nth-child(even) { background: rgba(90, 58, 28, .07); }
+  tbody tr:hover { background: rgba(255, 244, 212, .5); }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--ink-soft); font-size: 11px; }
+  .expired { color: var(--danger); font-weight: 600; }
+
+  td.name { min-width: 190px; }
+
+  /* Price is what people compare; it gets weight and the darker gold. */
+  td.num:last-child { font-weight: 600; color: #6b4410; }
+  .fixed { font-weight: 400; font-size: 11px; color: var(--ink-soft); }
+
+  .qty-inline { margin-left: 5px; color: var(--ink-soft); font-size: 12px; }
+
+  /* Click target for naming: it only looks editable on hover, otherwise the
+     whole table would read as a form. */
+  .item-name {
+    cursor: text;
+    border-bottom: 1px dashed transparent;
+    transition: border-color .15s;
+  }
+  .item-name:hover { border-bottom-color: var(--wood-500); }
+
+  .name-input {
+    width: 100%;
+    padding: 3px 6px;
+    border: 1px solid var(--gold-700);
+    border-radius: 4px;
+    background: var(--parch-100);
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.2;
+    font-family: var(--ui);
+  }
+  .name-input:focus { outline: none; box-shadow: var(--ring); }
+
+  .seller {
+    cursor: pointer;
+    color: #5a3a1c;
+    border-bottom: 1px dotted rgba(90, 58, 28, .6);
+  }
+  .seller:hover { color: var(--danger); }
+
+  .msg { padding: 26px; text-align: center; color: var(--ink-soft); }
+  .msg.error { color: var(--danger); font-weight: 600; }
+
+  /* ---- chips and notices ---- */
+  .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip-bar:not(:empty) { margin-bottom: 10px; }
+
+  .chip, .notice {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+
+  .chip {
+    background: rgba(0, 0, 0, .3);
+    border: 1px solid var(--gold-700);
+    color: var(--gold-300);
+  }
+
+  .chip b { color: var(--gold-100); }
+
+  .chip button {
+    padding: 0;
+    width: 16px; height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: var(--gold-700);
+    color: var(--wood-900);
+    font-size: 11px;
+    line-height: 16px;
+  }
+  .chip button:hover { background: var(--gold-400); }
+
+  .notice {
+    background: rgba(245, 166, 35, .15);
+    border: 1px solid var(--accent);
+    color: var(--gold-300);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    line-height: 1.4;
+  }
+
+  /* ---- footer ---- */
+  /* One row: the running total on the left, the paging controls on the right. */
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 12px;
+  }
+
+  .pages {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pager button { padding: 6px 13px; background: linear-gradient(180deg, var(--wood-500), var(--wood-700)); color: var(--gold-400); }
+  .pager button:hover:not(:disabled) { color: var(--gold-100); filter: brightness(1.15); }
+
+  .count { color: var(--gold-300); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  /* The total is the flexible side: it truncates instead of pushing the
+     controls off the edge on a narrow card. */
+  .total {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    color: rgba(242, 216, 148, .5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---- name panel ---- */
+  .panel {
+    flex: 0 0 auto;
+    max-height: 50%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
+    background: linear-gradient(170deg, var(--wood-600), var(--wood-800));
+    border: var(--edge);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .5), var(--edge-inner);
+  }
+
+  /* Wide screens get the side column. The panel is taken out of the flow and
+     hung in the left margin, which is what keeps the table exactly the same
+     width whether the panel is open or closed — an in-flow column would push
+     the table every time you toggled it.
+     .page reserves 584px: the panel (262) plus its gap (14), doubled so the
+     table still lands on the centre of the screen, plus the body padding.
+     The breakpoint is measured, not guessed: the table needs 699px before it
+     starts scrolling sideways, plus 34px of card padding and border, plus the
+     584px reservation. Below that it falls back to the stacked drawer, where
+     the table gets the full width back. */
+  @media (min-width: 1320px) {
+    .page { width: min(904px, 100vw - 584px); }
+
+    .app { flex-direction: row; gap: 0; }
+
+    .panel {
+      position: absolute;
+      top: 0;
+      right: calc(100% + 14px);
+      width: 262px;
+      height: 100%;
+      max-height: 100%;
+    }
+
+    /* Closed it is just the summary. max-content, not auto: an absolutely
+       positioned box with only `right` set falls into shrink-to-fit, which
+       would squeeze the label down to its longest word and wrap it. */
+    .panel:not([open]) { width: max-content; height: auto; }
+  }
+
+  .panel > summary {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    cursor: pointer;
+    color: var(--gold-400);
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1;
+    font-family: var(--ui);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    list-style: none;
+    user-select: none;
+  }
+
+  .panel > summary::-webkit-details-marker { display: none; }
+  .panel > summary:hover { color: var(--gold-100); }
+  .panel > summary:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius); }
+
+  /* The arrow rotates to signal open/closed, which is the only state feedback
+     <details> still gives once we hide its native marker. */
+  .panel > summary::after {
+    content: "▸";
+    margin-left: auto;
+    font-size: 13px;
+    transition: transform .18s;
+  }
+  .panel[open] > summary::after { transform: rotate(90deg); }
+
+  .panel-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+    border-top: 1px solid rgba(232, 194, 104, .15);
+    padding-top: 14px;
+  }
+
+  .panel-sec + .panel-sec { margin-top: 18px; }
+
+  .panel-sec h2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 8px;
+    color: var(--gold-300);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    font-family: var(--ui);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+
+  .tag {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .35);
+    color: var(--gold-400);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .id-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .id-chip {
+    padding: 4px 9px;
+    border: 1px solid var(--gold-700);
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, .25);
+    color: var(--gold-300);
+    font-size: 12px;
+    line-height: 1;
+    font-family: var(--ui);
+    font-variant-numeric: tabular-nums;
+  }
+  .id-chip:hover { background: var(--accent); color: #2b1806; }
+
+  .saved-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, .2);
+  }
+  .saved-row + .saved-row { margin-top: 4px; }
+
+  .saved-id { color: var(--gold-500); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .saved-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--parch-100);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .saved-row .del {
+    flex: 0 0 auto;
+    padding: 0;
+    width: 17px; height: 17px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(176, 58, 46, .55);
+    color: var(--parch-100);
+    font-size: 11px;
+    line-height: 17px;
+  }
+  .saved-row .del:hover { background: var(--danger); }
+
+  .badge-default {
+    flex: 0 0 auto;
+    font-size: 9px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: rgba(242, 216, 148, .6);
+  }
+
+  .btn-ghost {
+    width: 100%;
+    margin-top: 18px;
+    padding: 9px;
+    background: rgba(0, 0, 0, .25);
+    color: var(--gold-300);
+    font-size: 12px;
+  }
+  .btn-ghost:hover { background: var(--accent); color: #2b1806; }
+
+  .panel-hint {
+    margin: 10px 0 0;
+    color: rgba(242, 216, 148, .5);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .panel-hint.warn { color: var(--accent); }
+
+  .empty { color: rgba(242, 216, 148, .4); font-size: 11px; font-style: italic; }
+
+  /* ---- narrow screens ---- */
+  /* Stack them: the panel becomes a drawer above the table, closed by default,
+     otherwise little height is left for the auction, which is the main
+     content. */
+  @media (max-width: 900px) {
+    body { padding: 10px; }
+    .frame { padding: 12px; }
+    .page { gap: 12px; }
+    .brand { font-size: 10px; letter-spacing: 3px; text-indent: 3px; gap: 10px; }
+    .brand::before, .brand::after { width: 30px; }
+    .masthead h1 { font-size: 23px; letter-spacing: 6px; text-indent: 6px; }
+    .search { flex-wrap: wrap; }
+    #searchInput, #sellerInput { flex: 1 1 140px; }
+    /* When the search wraps onto two lines, a short button pinned to the left
+       looks misaligned; filling the row makes a better target. */
+    .search .btn { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <p class="brand">DD Clássico</p>
+    <h1>Leilão</h1>
+  </header>
+
+  <div class="app">
+
+    <details class="panel" id="panel">
+      <summary>Nomes dos itens</summary>
+      <div class="panel-body scroll">
+
+        <section class="panel-sec">
+          <h2>Sem nome nesta página <span class="tag" id="missingCount">0</span></h2>
+          <div class="id-list" id="missingList"></div>
+        </section>
+
+        <section class="panel-sec">
+          <h2>Salvos <span class="tag" id="savedCount">0</span></h2>
+          <div id="savedList"></div>
+        </section>
+
+        <button type="button" class="btn-ghost" id="exportBtn">Exportar names.json</button>
+        <p class="panel-hint" id="panelHint"></p>
+
+      </div>
+    </details>
+
+    <div class="frame">
+      <form class="search" id="searchForm">
+        <input id="searchInput" type="text" placeholder="nome do item" autocomplete="off">
+        <input id="sellerInput" type="text" placeholder="vendedor (opcional)" autocomplete="off">
+        <button type="submit" class="btn" id="searchBtn">Pesquisar</button>
+      </form>
+
+      <div class="chip-bar" id="chipBar"></div>
+      <div class="chip-bar" id="notice"></div>
+
+      <div class="table-wrap scroll" id="tableWrap">
+        <table>
+          <thead><tr id="head"></tr></thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span class="total" id="total"></span>
+        <span class="pages">
+          <span class="count" id="count">-/-</span>
+          <button id="prev" type="button">◀</button>
+          <button id="next" type="button">▶</button>
+        </span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const ENDPOINT  = 'https://s1.ddclassico.com/auctionpagelist.ashx';
+const PAGE_SIZE = 50;  // hardcoded in the server handler (size = 50), cannot be changed
+const NAMES_URL = 'names.json';
+const LS_KEY    = 'ddah:names';
+
+// TemplateID ranges documented in the server code (PlayerBussiness.GetAuctionPage).
+const RANGES = [
+  [311000, 311999, 'Pérola triangular'],
+  [312000, 312999, 'Pérola quadrada'],
+  [313000, 313999, 'Pérola redonda'],
+  [ 11001,  11004, 'Pedra de composição (Zhuque)'],
+  [ 11005,  11008, 'Pedra de composição (Xuanwu)'],
+  [ 11009,  11012, 'Pedra de composição (Qinglong)'],
+  [ 11013,  11016, 'Pedra de composição (Baihu)'],
+];
+const STRENGTHEN = [11019, 11021, 11022, 11023]; // strengthening stones
+
+const COLS = [
+  { label: 'Nome',           order: 0,    align: ''    },
+  { label: 'Quantidade',     order: null, align: 'num' },
+  { label: 'Tempo restante', order: 2,    align: ''    },
+  { label: 'Vendedor',       order: 3,    align: ''    },
+  { label: 'Preço atual',    order: 4,    align: 'num' },
+];
+
+// sellerId = -1 is the server sentinel for "no seller filter".
+const state = { name: '', order: 4, desc: true, page: 1, total: 0, sellerId: -1, sellerName: '' };
+let cache   = { key: null, rows: [] };
+let reqId   = 0;
+let rows    = [];   // what is on screen now, so we can redraw without refetching
+
+/* ---------- item names ---------- */
+
+// The server never returns an item name, only the TemplateID: the game client
+// is what resolves it. Here that comes from two layers, general to specific:
+// names.json next to index.html is the default every visitor of this instance
+// sees, and localStorage holds each browser's own overrides.
+let defaultNames  = {};
+let localNames    = {};
+let defaultsFailed = false;
+
+function loadLocal() {
+  // localStorage throws in private tabs and when the quota is full; an item
+  // name is not worth taking the whole page down for.
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveLocal() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(localNames)); }
+  catch { renderHint('Não consegui salvar no navegador (aba anônima?).', true); }
+}
+
+async function loadDefaults() {
+  // fetch is blocked on file://, so opening the file by double-click makes this
+  // request fail. Not fatal: we carry on with the local names only.
+  try {
+    const res = await fetch(NAMES_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    defaultsFailed = true;
+    return {};
+  }
+}
+
+const nameOf = id => localNames[id] ?? defaultNames[id] ?? null;
+
+// "Unnamed" means whatever the table would render as "Item #123": neither
+// named by hand nor covered by one of the known ranges.
+const isUnnamed = id => !nameOf(id) && !STRENGTHEN.includes(id)
+  && !RANGES.some(([lo, hi]) => id >= lo && id <= hi);
+
+function setName(id, value) {
+  if (value) localNames[id] = value;
+  else delete localNames[id];   // an empty field drops the override and falls back to the default
+  saveLocal();
+}
+
+function itemName(id) {
+  const own = nameOf(id);
+  if (own) return own;
+  if (STRENGTHEN.includes(id)) return 'Pedra de fortalecimento';
+  const hit = RANGES.find(([lo, hi]) => id >= lo && id <= hi);
+  return hit ? hit[2] : 'Item #' + id;
+}
+
+/* ---------- data ---------- */
+
+// All 9 parameters are required: the handler calls int.Parse/bool.Parse with
+// no validation, and a single missing one breaks the whole request.
+function buildUrl(serverPage) {
+  const p = new URLSearchParams({
+    page:     serverPage,
+    name:     state.name,
+    type:    -1,
+    pay:     -1,
+    userID:   state.sellerId,   // becomes "AuctioneerID = <id>" in the SQL
+    buyID:   -1,
+    order:    state.order,
+    sort:     state.desc,
+    Auctions: '',
+  });
+  return ENDPOINT + '?' + p;
+}
+
+function parseDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(s || '');
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+}
+
+function parse(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const root = doc.documentElement;
+
+  if (root.nodeName === 'parsererror') throw new Error('XML inválido');
+  if (root.getAttribute('value') !== 'true' && root.getAttribute('vaule') !== 'true') {
+    throw new Error(root.getAttribute('message') || 'O servidor recusou a consulta');
+  }
+
+  // The auction <Item> and the goods <Item> share a tag name; only the outer
+  // ones are direct children of <Result>.
+  const items = [...root.children].filter(el => el.nodeName === 'Item').map(el => {
+    const goods = [...el.children].find(c => c.nodeName === 'Item');
+    const begin = parseDate(el.getAttribute('BeginDate'));
+    const hours = +el.getAttribute('ValidDate') || 0;
+    return {
+      templateId: goods ? +goods.getAttribute('TemplateID') : 0,
+      count:      goods ? +goods.getAttribute('Count') || 1 : 1,
+      seller:     el.getAttribute('AuctioneerName') || '-',
+      sellerId:   +el.getAttribute('AuctioneerID') || 0,
+      price:      +el.getAttribute('Price') || 0,
+      mouthful:   +el.getAttribute('Mouthful') || 0,
+      endsAt:     begin ? begin.getTime() + hours * 3600e3 : null,
+    };
+  });
+
+  return { rows: items, total: +root.getAttribute('total') || 0 };
+}
+
+async function loadPage(page) {
+  const key = [page, state.name, state.order, state.desc, state.sellerId].join('|');
+  if (cache.key === key) return cache.rows;
+
+  const res = await fetch(buildUrl(page));
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+
+  const parsed = parse(await res.text());
+  state.total = parsed.total;
+  cache = { key, rows: parsed.rows };
+  return parsed.rows;
+}
+
+// Raw fetch that touches neither the cache nor the state: used by the binary
+// search, which must probe pages without disturbing what is on screen.
+async function probe(page) {
+  const p = new URLSearchParams({
+    page, name: '', type: -1, pay: -1, userID: -1, buyID: -1,
+    order: 3, sort: false, Auctions: '',   // order=3 => sorts by AuctioneerName
+  });
+  const res = await fetch(ENDPOINT + '?' + p);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return parse(await res.text());
+}
+
+/* ---------- presentation ---------- */
+
+function remaining(endsAt) {
+  if (endsAt === null) return '-';
+  const ms = endsAt - Date.now();
+  if (ms <= 0) return 'Expirado';
+  const h = Math.floor(ms / 3600e3);
+  const m = Math.floor(ms % 3600e3 / 60e3);
+  if (h >= 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+  if (h > 0)   return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+const money = n => n.toLocaleString('pt-BR');
+
+// Player nicknames come from the server and item names come from the user;
+// both can contain < > & or quotes.
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function renderHead() {
+  document.getElementById('head').innerHTML = COLS.map((c, i) => {
+    if (c.order === null) return `<th class="${c.align}">${c.label}</th>`;
+    const active = state.order === c.order;
+    const arrow  = active ? (state.desc ? '▼' : '▲') : '▽';
+    return `<th class="sortable ${c.align} ${active ? 'active' : ''}" data-col="${i}">`
+         + `${c.label} <span class="arrow">${arrow}</span></th>`;
+  }).join('');
+}
+
+function renderMessage(text, isError) {
+  document.getElementById('body').innerHTML =
+    `<tr><td colspan="${COLS.length}" class="msg ${isError ? 'error' : ''}">${text}</td></tr>`;
+}
+
+function renderRows() {
+  if (!rows.length) return renderMessage('Nenhum item encontrado.');
+
+  document.getElementById('body').innerHTML = rows.map(r => {
+    const time = remaining(r.endsAt);
+    return '<tr>'
+      + `<td class="name">`
+        + `<span class="item-name" data-id="${r.templateId}" title="Clique para nomear este item">`
+          + `${esc(itemName(r.templateId))}</span>`
+        + `<span class="qty-inline">×${r.count}</span>`
+        + `<div class="muted">#${r.templateId}</div></td>`
+      + `<td class="num">${r.count}</td>`
+      + `<td class="${time === 'Expirado' ? 'expired' : ''}">${time}</td>`
+      + `<td><span class="seller" data-id="${r.sellerId}" data-name="${esc(r.seller)}"`
+        + ` title="Ver só os itens deste vendedor">${esc(r.seller)}</span></td>`
+      + `<td class="num">${money(r.price)}`
+        + (r.mouthful > 0 ? `<div class="fixed">${money(r.mouthful)} fixo</div>` : '')
+      + '</td></tr>';
+  }).join('');
+}
+
+function renderChip() {
+  document.getElementById('chipBar').innerHTML = state.sellerId === -1 ? ''
+    : `<span class="chip">Vendedor: <b>${esc(state.sellerName)}</b>`
+    + ` <button type="button" id="clearSeller" title="Remover filtro">✕</button></span>`;
+}
+
+function renderNotice(html) {
+  document.getElementById('notice').innerHTML = `<span class="notice">${html}</span>`;
+}
+
+function renderPager(pages) {
+  document.getElementById('count').textContent = state.page + '/' + (pages || 1);
+  document.getElementById('prev').disabled = state.page <= 1;
+  document.getElementById('next').disabled = state.page >= pages;
+  document.getElementById('total').textContent =
+    state.total ? state.total.toLocaleString('pt-BR') + ' itens em leilão' : '';
+}
+
+/* ---------- name panel ---------- */
+
+function renderHint(text, warn) {
+  const el = document.getElementById('panelHint');
+  el.textContent = text;
+  el.classList.toggle('warn', !!warn);
+}
+
+function renderPanel() {
+  // The same TemplateID shows up on several rows; naming it once fixes all.
+  const missing = [...new Set(rows.filter(r => isUnnamed(r.templateId)).map(r => r.templateId))]
+    .sort((a, b) => a - b);
+
+  document.getElementById('missingCount').textContent = missing.length;
+  document.getElementById('missingList').innerHTML = missing.length
+    ? missing.map(id => `<button type="button" class="id-chip" data-goto="${id}"`
+        + ` title="Ir até o item e nomear">#${id}</button>`).join('')
+    : '<span class="empty">Tudo nomeado nesta página.</span>';
+
+  const ids = [...new Set([...Object.keys(defaultNames), ...Object.keys(localNames)])]
+    .map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+
+  document.getElementById('savedCount').textContent = ids.length;
+  document.getElementById('savedList').innerHTML = ids.length
+    ? ids.map(id => {
+        const mine = localNames[id] !== undefined;
+        return `<div class="saved-row">`
+          + `<span class="saved-id">#${id}</span>`
+          + `<span class="saved-name" title="${esc(nameOf(id))}">${esc(nameOf(id))}</span>`
+          + (mine
+              ? `<button type="button" class="del" data-del="${id}"`
+                + ` title="${defaultNames[id] !== undefined
+                    ? 'Descartar seu ajuste e voltar ao names.json'
+                    : 'Remover este nome'}">✕</button>`
+              : `<span class="badge-default" title="Vem do names.json desta instância">padrão</span>`)
+          + `</div>`;
+      }).join('')
+    : '<span class="empty">Nenhum nome ainda.</span>';
+}
+
+function redraw() {
+  renderRows();
+  renderPanel();
+}
+
+/* ---------- name editing ---------- */
+
+function startEdit(cell) {
+  if (cell.querySelector('input')) return;   // already being edited
+
+  const id = +cell.dataset.id;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'name-input';
+  input.maxLength = 60;
+  input.placeholder = 'nome do item #' + id;
+  input.value = nameOf(id) || '';
+
+  cell.textContent = '';
+  cell.appendChild(input);
+  input.focus();
+  input.select();
+
+  // Enter and leaving the field both save; Esc gives up. The guard avoids
+  // saving twice when Enter removes focus and fires blur right after.
+  let closed = false;
+  const finish = save => {
+    if (closed) return;
+    closed = true;
+    if (save) setName(id, input.value.trim());
+    redraw();
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+function exportNames() {
+  // Sorted by ID so the file produces clean git diffs on every round.
+  const merged = { ...defaultNames, ...localNames };
+  const output = {};
+  Object.keys(merged).map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+    .forEach(id => output[id] = merged[id]);
+
+  const blob = new Blob([JSON.stringify(output, null, 2) + '\n'], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'names.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- seller lookup ---------- */
+
+// The server sorts with the SQL Server collation, which is not the same as
+// localeCompare. Normalizing (lowercase, no accents) narrows the mismatch but
+// does not remove it: that is why the search ends by sweeping a window of
+// pages instead of blindly trusting where the bisection stopped.
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const cmp  = (a, b) => norm(a) < norm(b) ? -1 : norm(a) > norm(b) ? 1 : 0;
+
+const findIn = (list, target) => list.find(r => norm(r.seller) === norm(target) && r.sellerId);
+
+async function findSeller(target, onProgress) {
+  const first = await probe(1);
+  const pages = Math.max(1, Math.ceil(first.total / PAGE_SIZE));
+
+  let hit = findIn(first.rows, target);
+  if (hit) return { hit, pages, page: 1, probes: 1 };
+
+  // Bisection: shrink the range by comparing against the page's first name.
+  let lo = 1, mid = 1, probes = 1;
+  let hi = pages;
+  while (lo <= hi) {
+    mid = (lo + hi) >> 1;
+    const r = await probe(mid);
+    probes++;
+    onProgress(probes);
+
+    hit = findIn(r.rows, target);
+    if (hit) return { hit, pages, page: mid, probes };
+
+    if (!r.rows.length) break;
+    if (cmp(target, r.rows[0].seller) < 0) hi = mid - 1;
+    else if (cmp(target, r.rows[r.rows.length - 1].seller) > 0) lo = mid + 1;
+    else break; // lands inside this page yet still no match: the collation diverged
+  }
+
+  // Safety window around the page where it stopped.
+  for (const p of [mid - 1, mid + 1, mid - 2, mid + 2]) {
+    if (p < 1 || p > pages || p === mid) continue;
+    const r = await probe(p);
+    probes++;
+    onProgress(probes);
+    hit = findIn(r.rows, target);
+    if (hit) return { hit, pages, page: p, probes };
+  }
+
+  return { hit: null, pages, page: Math.min(Math.max(mid, 1), pages), probes };
+}
+
+async function doSearch() {
+  const btn   = document.getElementById('searchBtn');
+  const field  = document.getElementById('sellerInput');
+  const target = field.value.trim();
+
+  state.name = document.getElementById('searchInput').value.trim();
+  state.page = 1;
+
+  // An empty seller field means "all sellers".
+  if (!target) {
+    state.sellerId   = -1;
+    state.sellerName = '';
+    return refresh();
+  }
+
+  // Already filtering by this same seller: reuse the ID we have instead of
+  // spending ~9 requests again just because the item name changed.
+  if (state.sellerId !== -1 && norm(state.sellerName) === norm(target)) return refresh();
+
+  btn.disabled = true;
+  renderMessage('Procurando vendedor... (1 consulta)');
+
+  try {
+    const { hit, page, probes } = await findSeller(target, n =>
+      renderMessage(`Procurando vendedor... (${n} consultas)`));
+
+    if (hit) {
+      state.sellerId   = hit.sellerId;
+      state.sellerName = hit.seller;
+      field.value      = hit.seller;   // exact casing as the server stores it
+      await refresh();
+      return;
+    }
+
+    // No exact match: rather than claim the seller does not exist, take the user
+    // to where the name would fall alphabetically so they can click the right
+    // one. The item filter has to go, otherwise the page would not match the
+    // seller ordering the search used to get here.
+    const hadItemFilter = !!state.name;
+    state.sellerId   = -1;
+    state.sellerName = '';
+    state.name  = '';
+    state.order = 3;
+    state.desc  = false;
+    state.page  = page;
+    document.getElementById('searchInput').value = '';
+    await refresh();
+    renderNotice(`"${esc(target)}" não foi encontrado em ${probes} consultas. `
+      + 'Esta é a página onde o nome cairia na ordem — clique no vendedor certo.'
+      + (hadItemFilter ? ' O filtro de item foi limpo para a ordenação bater.' : ''));
+  } catch (err) {
+    renderMessage('Falha na busca: ' + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- main cycle ---------- */
+
+async function refresh() {
+  const id = ++reqId;
+  renderHead();
+  renderChip();
+  document.getElementById('notice').innerHTML = '';
+  renderMessage('Carregando...');
+
+  try {
+    const list = await loadPage(state.page);
+    if (id !== reqId) return; // a newer request has already taken over
+    rows = list;
+    redraw();
+    renderPager(Math.max(1, Math.ceil(state.total / PAGE_SIZE)));
+    document.getElementById('tableWrap').scrollTop = 0; // a new page starts at the top
+  } catch (err) {
+    if (id !== reqId) return;
+    rows = [];
+    renderMessage('Falha ao carregar: ' + err.message, true);
+    renderPanel();
+    renderPager(0);
+  }
+}
+
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  doSearch();
+});
+
+document.getElementById('head').addEventListener('click', e => {
+  const th = e.target.closest('th.sortable');
+  if (!th) return;
+  const col = COLS[+th.dataset.col];
+  // The same column flips direction; a new column starts ascending.
+  state.desc  = state.order === col.order ? !state.desc : false;
+  state.order = col.order;
+  state.page  = 1;
+  refresh();
+});
+
+document.getElementById('body').addEventListener('click', e => {
+  const nameCell = e.target.closest('.item-name');
+  if (nameCell) return startEdit(nameCell);
+
+  const el = e.target.closest('.seller');
+  if (!el) return;
+  const id = +el.dataset.id;
+  if (!id) return; // without a usable ID, filtering by 0 would return nothing
+  state.sellerId   = id;
+  state.sellerName = el.dataset.name;
+  // Mirror it into the field: without this the next search would see an empty
+  // field, read it as "all sellers", and drop the filter unasked.
+  document.getElementById('sellerInput').value = el.dataset.name;
+  state.page = 1;
+  refresh();
+});
+
+document.getElementById('chipBar').addEventListener('click', e => {
+  if (!e.target.closest('#clearSeller')) return;
+  state.sellerId   = -1;
+  state.sellerName = '';
+  document.getElementById('sellerInput').value = '';
+  state.page = 1;
+  refresh();
+});
+
+document.getElementById('missingList').addEventListener('click', e => {
+  const chip = e.target.closest('[data-goto]');
+  if (!chip) return;
+  const cell = document.querySelector(`.item-name[data-id="${chip.dataset.goto}"]`);
+  if (!cell) return;
+  cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  startEdit(cell);
+});
+
+document.getElementById('savedList').addEventListener('click', e => {
+  const btn = e.target.closest('[data-del]');
+  if (!btn) return;
+  setName(+btn.dataset.del, '');
+  redraw();
+});
+
+document.getElementById('exportBtn').addEventListener('click', exportNames);
+
+document.getElementById('prev').addEventListener('click', () => {
+  if (state.page > 1) { state.page--; refresh(); }
+});
+
+document.getElementById('next').addEventListener('click', () => {
+  state.page++;
+  refresh();
+});
+
+(async function init() {
+  // Open only where the panel has its own column; in the stacked layout it is a
+  // drawer that would steal half the auction's screen, which is what the person
+  // came to see. The breakpoint mirrors the one in the stylesheet.
+  document.getElementById('panel').open = window.matchMedia('(min-width: 1320px)').matches;
+
+  localNames   = loadLocal();
+  defaultNames = await loadDefaults();
+
+  renderHint(defaultsFailed
+    ? 'names.json não carregou — abrindo por file://? Só os nomes deste navegador estão ativos.'
+    : 'Exporte e substitua o names.json na raiz do projeto para todo mundo ver esses nomes.',
+    defaultsFailed);
+
+  refresh();
+})();
+</script>
+</body>
+</html>

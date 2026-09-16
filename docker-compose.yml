@@ -1,0 +1,17 @@
+services:
+  web:
+    image: nginx:alpine
+    container_name: ddauctionhouse
+    # The host port comes from .env (or from PORT in the environment); 8080 is
+    # only the default for people who configured nothing. Inside the container
+    # nginx always listens on 80, so only the left-hand side changes.
+    ports:
+      - "${PORT:-8080}:80"
+    volumes:
+      # The whole folder, not file by file: a single-file bind mount pins the
+      # inode, and an editor that saves by "write temp + rename" (vim, VS Code)
+      # would silently leave the container serving the old version.
+      # What is public is decided by the allowlist in nginx.conf.
+      - .:/srv/app:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
