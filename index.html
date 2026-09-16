@@ -489,11 +489,12 @@
   /* ---- name panel ---- */
   .panel {
     flex: 0 0 auto;
-    max-height: 50%;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    max-height: 100%;
+    /* Stacked, the drawer must not swallow the table. The wide layout overrides
+       this with the full height of its own column. */
+    max-height: 40%;
     background: linear-gradient(170deg, var(--wood-600), var(--wood-800));
     border: var(--edge);
     border-radius: var(--radius);
@@ -610,6 +611,19 @@
     font-size: 10px;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Every list scrolls inside its own box. Without a cap, a long watch list or
+     a big pile of saved names pushed the sections under it out of the card —
+     and in the stacked layout it pushed the table itself off screen. */
+  .list-scroll {
+    max-height: 190px;
+    overflow-y: auto;
+  }
+
+  /* The history is the only content of its card, so it gets the room. Capping
+     it anyway keeps "Limpar histórico" reachable without scrolling to the end
+     of a hundred entries. */
+  #eventList { max-height: 55vh; }
 
   .id-list { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -806,12 +820,12 @@
         <div class="group">
           <section class="panel-sec">
             <h2>Sem nome nesta página <span class="tag" id="missingCount">0</span></h2>
-            <div class="id-list" id="missingList"></div>
+            <div class="id-list list-scroll scroll" id="missingList"></div>
           </section>
 
           <section class="panel-sec">
             <h2>Salvos <span class="tag" id="savedCount">0</span></h2>
-            <div id="savedList"></div>
+            <div class="list-scroll scroll" id="savedList"></div>
           </section>
 
           <button type="button" class="btn-ghost" id="exportBtn">Exportar names.json</button>
@@ -821,7 +835,7 @@
         <div class="group">
           <section class="panel-sec">
             <h2>Vigiando <span class="tag" id="watchCount">0</span></h2>
-            <div id="watchList"></div>
+            <div class="list-scroll scroll" id="watchList"></div>
           </section>
         </div>
 
@@ -858,7 +872,7 @@
     <details class="panel" id="history">
       <summary>Notificações <span class="tag" id="eventCount">0</span></summary>
       <div class="panel-body scroll">
-        <div id="eventList"></div>
+        <div class="list-scroll scroll" id="eventList"></div>
         <button type="button" class="btn-ghost" id="clearEvents">Limpar histórico</button>
       </div>
     </details>
