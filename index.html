@@ -488,13 +488,14 @@
 
   /* ---- name panel ---- */
   .panel {
+    /* Must NOT shrink. The frame asks for max-height:100% of the column, so the
+       column always overflows on paper; with flex-shrink 1 the browser settles
+       that by crushing the smallest items, and a closed drawer collapsed from
+       43px to 11px. The frame has min-height:0 and absorbs the difference. */
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    /* Stacked, the drawer must not swallow the table. The wide layout overrides
-       this with the full height of its own column. */
-    max-height: 40%;
     background: linear-gradient(170deg, var(--wood-600), var(--wood-800));
     border: var(--edge);
     border-radius: var(--radius);
@@ -536,6 +537,22 @@
        positioned box with only `right` set falls into shrink-to-fit, which
        would squeeze the label down to its longest word and wrap it. */
     .panel:not([open]) { width: max-content; height: auto; }
+
+    /* Per-list scrolling belongs to this layout only. Here the card is full
+       height and the lists are what needs bounding. Stacked, the drawer is
+       already short and .panel-body is the one scroller — nesting a second
+       scroll area inside it makes the outer one unusable by touch.
+       overflow-x stays hidden because overflow-y:auto alone would compute
+       overflow-x to auto as well, and .id-list is a wrapping flex row. */
+    .list-scroll {
+      max-height: 190px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* The history is the only content of its card, so it gets more room —
+       capped anyway so "Limpar histórico" stays reachable. */
+    #eventList { max-height: 55vh; }
   }
 
   .panel > summary {
@@ -570,9 +587,11 @@
   }
   .panel[open] > summary::after { transform: rotate(90deg); }
 
+  /* Chrome wraps the content of a <details> in an anonymous box, so this is not
+     really a flex item of .panel: flex and min-height on it are ignored, and
+     without an explicit max-height it overflows the card instead of scrolling.
+     Hence the caps in the media queries below rather than flex sizing. */
   .panel-body {
-    flex: 1 1 auto;
-    min-height: 0;
     overflow-y: auto;
     padding: 0 16px 16px;
     border-top: 1px solid rgba(232, 194, 104, .15);
@@ -611,19 +630,6 @@
     font-size: 10px;
     font-variant-numeric: tabular-nums;
   }
-
-  /* Every list scrolls inside its own box. Without a cap, a long watch list or
-     a big pile of saved names pushed the sections under it out of the card —
-     and in the stacked layout it pushed the table itself off screen. */
-  .list-scroll {
-    max-height: 190px;
-    overflow-y: auto;
-  }
-
-  /* The history is the only content of its card, so it gets the room. Capping
-     it anyway keeps "Limpar histórico" reachable without scrolling to the end
-     of a hundred entries. */
-  #eventList { max-height: 55vh; }
 
   .id-list { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -783,6 +789,13 @@
 
   .event-text { display: block; }
 
+  /* Stacked, the card is as tall as its header plus this cap, and the body
+     scrolls past it. 26vh is what lets both drawers be open at once and still
+     leave the table something to show. */
+  @media (max-width: 1319px) {
+    .panel-body { max-height: 26vh; }
+  }
+
   /* ---- narrow screens ---- */
   /* Stack them: the panel becomes a drawer above the table, closed by default,
      otherwise little height is left for the auction, which is the main
@@ -794,6 +807,36 @@
     .brand { font-size: 10px; letter-spacing: 3px; text-indent: 3px; gap: 10px; }
     .brand::before, .brand::after { width: 30px; }
     .masthead h1 { font-size: 23px; letter-spacing: 6px; text-indent: 6px; }
+    /* Drop the two columns that earn the least width here. Quantity is already
+       printed as "x400" beside the name, and the auction ID is not what you
+       scan for on a phone — both stay one tap away by rotating or scrolling.
+       This buys the room for price, which is the whole point of the table. */
+    thead th:nth-child(1), tbody td:nth-child(1),
+    thead th:nth-child(3), tbody td:nth-child(3) { display: none; }
+
+    /* Reclaim width so the remaining columns fit without sliding the table:
+       tighter cells, a shorter floor for the name, headers allowed to wrap
+       instead of forcing their width, and the "preço fixo" caption dropped —
+       the bold figure is still legibly the buy-now one. */
+    th, td { padding: 7px 5px; }
+
+    /* The header text is the floor for column width here, so it shrinks too. */
+    th { white-space: normal; font-size: 11px; letter-spacing: .2px; }
+    td.name { min-width: 110px; }
+    .tag-fixo { display: none; }
+
+    /* The seller column sized itself to the longest nickname on the page and
+       was the single widest thing here. Capped and clipped instead: the full
+       name is still in the title, and tapping it still filters. */
+    .seller {
+      display: inline-block;
+      max-width: 68px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
+    }
+
     .search { flex-wrap: wrap; }
     #searchInput, #sellerInput { flex: 1 1 140px; }
     /* When the search wraps onto two lines, a short button pinned to the left
