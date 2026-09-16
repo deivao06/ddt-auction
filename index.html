@@ -85,7 +85,11 @@
     gap: 18px;
     width: 100%;
     max-width: 904px;
-    max-height: 100%;
+    /* height, not max-height: the cards must claim the whole viewport whatever
+       the table happens to hold. With max-height they collapsed onto their
+       content, so every search made all three cards jump while "Carregando..."
+       was on screen. */
+    height: 100%;
     min-height: 0;
   }
 
@@ -238,7 +242,7 @@
      without it a flex child refuses to shrink below its content and the
      scrollbar disappears. */
   .table-wrap {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     overflow-x: auto;          /* safety net on very narrow screens */
@@ -262,6 +266,10 @@
     border-collapse: collapse;
   }
 
+  /* The header follows whatever its column's cells do, so the standard holds
+     from the header down. */
+  th.mid, th.id { text-align: center; }
+
   th {
     position: sticky;
     top: 0;
@@ -283,6 +291,18 @@
     user-select: none;
   }
 
+  /* The currency is named once, in the header, instead of on every cell: fifty
+     rows of "cupons" would be noise, and the column already means one thing. */
+  .unit {
+    display: block;
+    margin-top: 2px;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: .4px;
+    text-transform: none;
+    opacity: .6;
+  }
+
   th.sortable { cursor: pointer; transition: color .15s; }
   th.sortable:hover { color: var(--gold-100); }
   th .arrow { opacity: .4; font-size: 9px; }
@@ -298,15 +318,58 @@
   tbody tr:nth-child(even) { background: rgba(90, 58, 28, .07); }
   tbody tr:hover { background: rgba(255, 244, 212, .5); }
 
-  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  /* Alignment standard: the item name is the only free-form, variable-length
+     column, so it is the only one left-aligned. Every other column holds a
+     short value you scan down, and those are centred. */
+  .mid { text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* The AuctionID identifies the listing; the #number under the name is the
+     TemplateID, which identifies the kind of item. Different things. */
+  .id {
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
   .muted { color: var(--ink-soft); font-size: 11px; }
   .expired { color: var(--danger); font-weight: 600; }
 
   td.name { min-width: 190px; }
 
-  /* Price is what people compare; it gets weight and the darker gold. */
-  td.num:last-child { font-weight: 600; color: #6b4410; }
-  .fixed { font-weight: 400; font-size: 11px; color: var(--ink-soft); }
+  /* Laid out like the game's own auction panel: the "preço fixo" caption sits
+     on the left, the two figures stack on the right. The caption bottom-aligns
+     so it lands beside the figure it names. */
+  .price-box {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .price-nums { margin-left: auto; text-align: right; }
+
+  /* Row order stays as the server reports it — bid first, buy-now under it.
+     Only the emphasis is inverted: buy-now is the number you act on, so it
+     carries the weight and the size. */
+  .price-bid { font-size: 12px; color: var(--ink-soft); }
+
+  /* With no buy-now price the bid is the only figure, so nothing outranks it
+     and it goes back to full size. */
+  .price-bid.solo { font-size: 14px; color: var(--ink); }
+
+  .price-fixed { font-size: 15px; font-weight: 700; color: #6b4410; }
+
+  .tag-fixo {
+    flex: 0 0 auto;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: .3px;
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
 
   .qty-inline { margin-left: 5px; color: var(--ink-soft); font-size: 12px; }
 
@@ -339,6 +402,11 @@
     border-bottom: 1px dotted rgba(90, 58, 28, .6);
   }
   .seller:hover { color: var(--danger); }
+
+  /* With a single message row, stretch the table so the cell centres in the now
+     fixed-height area instead of clinging to the top. A td is vertical-align:
+     middle by default, so filling the height is all it takes. */
+  .table-wrap:has(.msg) table { height: 100%; }
 
   .msg { padding: 26px; text-align: center; color: var(--ink-soft); }
   .msg.error { color: var(--danger); font-weight: 600; }
@@ -456,6 +524,13 @@
       max-height: 100%;
     }
 
+    /* The history hangs off the opposite edge. The 584px reservation was always
+       symmetric, so this side was already free. */
+    #history {
+      right: auto;
+      left: calc(100% + 14px);
+    }
+
     /* Closed it is just the summary. max-content, not auto: an absolutely
        positioned box with only `right` set falls into shrink-to-fit, which
        would squeeze the label down to its longest word and wrap it. */
@@ -504,6 +579,14 @@
   }
 
   .panel-sec + .panel-sec { margin-top: 18px; }
+
+  /* The card holds two unrelated jobs — naming items and watching auctions — so
+     they get a rule between them rather than just more space. */
+  .group + .group {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(232, 194, 104, .15);
+  }
 
   .panel-sec h2 {
     display: flex;
@@ -606,6 +689,86 @@
 
   .empty { color: rgba(242, 216, 148, .4); font-size: 11px; font-style: italic; }
 
+  /* ---- watching ---- */
+
+  /* The bell is a sibling of .item-name, never a child: the name cell is the
+     click-to-edit target, and nesting a button inside it would fight that. */
+  .bell {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--wood-500);
+    opacity: .75;
+    vertical-align: -2px;
+    transition: opacity .15s, color .15s, filter .15s;
+  }
+
+  .bell:hover { opacity: 1; color: var(--ink); }
+
+  /* Watched rings loud on purpose: it is the one bit of row state you scan for. */
+  .bell.on {
+    opacity: 1;
+    color: #b8730f;
+    filter: drop-shadow(0 0 3px rgba(245, 166, 35, .6));
+  }
+
+  .bell svg { display: block; margin: 0 auto; fill: currentColor; }
+
+  .watch-row,
+  .event {
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, .2);
+    font-size: 12px;
+    color: var(--parch-100);
+  }
+
+  .watch-row + .watch-row,
+  .event + .event { margin-top: 4px; }
+
+  .watch-row { display: flex; align-items: center; gap: 8px; }
+
+  .watch-name {
+    flex: 1 1 auto;
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .watch-bid { flex: 0 0 auto; color: var(--gold-400); font-variant-numeric: tabular-nums; }
+
+  .watch-row .del {
+    flex: 0 0 auto;
+    padding: 0;
+    width: 17px; height: 17px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(176, 58, 46, .55);
+    color: var(--parch-100);
+    font-size: 11px;
+    line-height: 17px;
+  }
+  .watch-row .del:hover { background: var(--danger); }
+
+  .event-when {
+    display: block;
+    margin-bottom: 2px;
+    color: rgba(242, 216, 148, .45);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .event-head {
+    display: block;
+    margin-bottom: 1px;
+    color: var(--gold-300);
+    font-weight: 600;
+  }
+
+  .event-text { display: block; }
+
   /* ---- narrow screens ---- */
   /* Stack them: the panel becomes a drawer above the table, closed by default,
      otherwise little height is left for the auction, which is the main
@@ -637,21 +800,30 @@
   <div class="app">
 
     <details class="panel" id="panel">
-      <summary>Nomes dos itens</summary>
+      <summary>Configurações</summary>
       <div class="panel-body scroll">
 
-        <section class="panel-sec">
-          <h2>Sem nome nesta página <span class="tag" id="missingCount">0</span></h2>
-          <div class="id-list" id="missingList"></div>
-        </section>
+        <div class="group">
+          <section class="panel-sec">
+            <h2>Sem nome nesta página <span class="tag" id="missingCount">0</span></h2>
+            <div class="id-list" id="missingList"></div>
+          </section>
 
-        <section class="panel-sec">
-          <h2>Salvos <span class="tag" id="savedCount">0</span></h2>
-          <div id="savedList"></div>
-        </section>
+          <section class="panel-sec">
+            <h2>Salvos <span class="tag" id="savedCount">0</span></h2>
+            <div id="savedList"></div>
+          </section>
 
-        <button type="button" class="btn-ghost" id="exportBtn">Exportar names.json</button>
-        <p class="panel-hint" id="panelHint"></p>
+          <button type="button" class="btn-ghost" id="exportBtn">Exportar names.json</button>
+          <p class="panel-hint" id="panelHint"></p>
+        </div>
+
+        <div class="group">
+          <section class="panel-sec">
+            <h2>Vigiando <span class="tag" id="watchCount">0</span></h2>
+            <div id="watchList"></div>
+          </section>
+        </div>
 
       </div>
     </details>
@@ -683,6 +855,14 @@
       </div>
     </div>
 
+    <details class="panel" id="history">
+      <summary>Notificações <span class="tag" id="eventCount">0</span></summary>
+      <div class="panel-body scroll">
+        <div id="eventList"></div>
+        <button type="button" class="btn-ghost" id="clearEvents">Limpar histórico</button>
+      </div>
+    </details>
+
   </div>
 
 </div>
@@ -692,29 +872,29 @@ const ENDPOINT  = 'https://s1.ddclassico.com/auctionpagelist.ashx';
 const PAGE_SIZE = 50;  // hardcoded in the server handler (size = 50), cannot be changed
 const NAMES_URL = 'names.json';
 const LS_KEY    = 'ddah:names';
-
-// TemplateID ranges documented in the server code (PlayerBussiness.GetAuctionPage).
-const RANGES = [
-  [311000, 311999, 'Pérola triangular'],
-  [312000, 312999, 'Pérola quadrada'],
-  [313000, 313999, 'Pérola redonda'],
-  [ 11001,  11004, 'Pedra de composição (Zhuque)'],
-  [ 11005,  11008, 'Pedra de composição (Xuanwu)'],
-  [ 11009,  11012, 'Pedra de composição (Qinglong)'],
-  [ 11013,  11016, 'Pedra de composição (Baihu)'],
-];
-const STRENGTHEN = [11019, 11021, 11022, 11023]; // strengthening stones
+const LS_WATCH  = 'ddah:watch';
+const LS_EVENTS = 'ddah:events';
+const POLL_MS   = 120e3;   // one sweep every two minutes
+const SOON_MS   = 30e3;    // the ending-soon check is local, so it can be cheap
+const WARN_MS   = 5 * 60e3;   // how long before the end to warn
+const MAX_EVENTS = 100;    // the history is a log, not an archive: keep it bounded
 
 const COLS = [
+  // order: null means the server cannot sort by it — the handler has no sort
+  // code for AuctionID, Count or Mouthful.
+  { label: 'ID',             order: null, align: 'id'  },
   { label: 'Nome',           order: 0,    align: ''    },
-  { label: 'Quantidade',     order: null, align: 'num' },
-  { label: 'Tempo restante', order: 2,    align: ''    },
-  { label: 'Vendedor',       order: 3,    align: ''    },
-  { label: 'Preço atual',    order: 4,    align: 'num' },
+  { label: 'Quantidade',     order: null, align: 'mid' },
+  { label: 'Tempo restante', order: 2,    align: 'mid' },
+  { label: 'Vendedor',       order: 3,    align: 'mid' },
+  { label: 'Preço',          order: 4,    align: 'mid', unit: 'cupons' },
+  { label: '',               order: null, align: 'mid' },
 ];
 
 // sellerId = -1 is the server sentinel for "no seller filter".
-const state = { name: '', order: 4, desc: true, page: 1, total: 0, sellerId: -1, sellerName: '' };
+// order 4 is Price and desc false is ascending: cheapest first, which is the
+// default every search returns to.
+const state = { name: '', order: 4, desc: false, page: 1, total: 0, sellerId: -1, sellerName: '' };
 let cache   = { key: null, rows: [] };
 let reqId   = 0;
 let rows    = [];   // what is on screen now, so we can redraw without refetching
@@ -757,10 +937,9 @@ async function loadDefaults() {
 
 const nameOf = id => localNames[id] ?? defaultNames[id] ?? null;
 
-// "Unnamed" means whatever the table would render as "Item #123": neither
-// named by hand nor covered by one of the known ranges.
-const isUnnamed = id => !nameOf(id) && !STRENGTHEN.includes(id)
-  && !RANGES.some(([lo, hi]) => id >= lo && id <= hi);
+// "Unnamed" means whatever the table would render as "Item #123": every name
+// comes from names.json or from localStorage, and nothing else.
+const isUnnamed = id => !nameOf(id);
 
 function setName(id, value) {
   if (value) localNames[id] = value;
@@ -769,11 +948,7 @@ function setName(id, value) {
 }
 
 function itemName(id) {
-  const own = nameOf(id);
-  if (own) return own;
-  if (STRENGTHEN.includes(id)) return 'Pedra de fortalecimento';
-  const hit = RANGES.find(([lo, hi]) => id >= lo && id <= hi);
-  return hit ? hit[2] : 'Item #' + id;
+  return nameOf(id) || 'Item #' + id;
 }
 
 /* ---------- data ---------- */
@@ -816,10 +991,15 @@ function parse(xml) {
     const begin = parseDate(el.getAttribute('BeginDate'));
     const hours = +el.getAttribute('ValidDate') || 0;
     return {
+      auctionId:  +el.getAttribute('AuctionID') || 0,
       templateId: goods ? +goods.getAttribute('TemplateID') : 0,
       count:      goods ? +goods.getAttribute('Count') || 1 : 1,
       seller:     el.getAttribute('AuctioneerName') || '-',
       sellerId:   +el.getAttribute('AuctioneerID') || 0,
+      // BuyerID is 0 until somebody bids; after that it names the current
+      // highest bidder, which is what the watcher diffs against.
+      buyerId:    +el.getAttribute('BuyerID') || 0,
+      buyerName:  el.getAttribute('BuyerName') || '',
       price:      +el.getAttribute('Price') || 0,
       mouthful:   +el.getAttribute('Mouthful') || 0,
       endsAt:     begin ? begin.getTime() + hours * 3600e3 : null,
@@ -869,17 +1049,23 @@ function remaining(endsAt) {
 
 const money = n => n.toLocaleString('pt-BR');
 
+// Away from the table there is no header to carry the unit, so it is spelled
+// out: a bare number in a notification says nothing about what it is.
+const coupons = n => money(n) + ' cupons';
+
 // Player nicknames come from the server and item names come from the user;
 // both can contain < > & or quotes.
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function renderHead() {
+  const unit = c => c.unit ? `<span class="unit">${c.unit}</span>` : '';
+
   document.getElementById('head').innerHTML = COLS.map((c, i) => {
-    if (c.order === null) return `<th class="${c.align}">${c.label}</th>`;
+    if (c.order === null) return `<th class="${c.align}">${c.label}${unit(c)}</th>`;
     const active = state.order === c.order;
     const arrow  = active ? (state.desc ? '▼' : '▲') : '▽';
     return `<th class="sortable ${c.align} ${active ? 'active' : ''}" data-col="${i}">`
-         + `${c.label} <span class="arrow">${arrow}</span></th>`;
+         + `${c.label} <span class="arrow">${arrow}</span>${unit(c)}</th>`;
   }).join('');
 }
 
@@ -894,19 +1080,39 @@ function renderRows() {
   document.getElementById('body').innerHTML = rows.map(r => {
     const time = remaining(r.endsAt);
     return '<tr>'
+      + `<td class="id">${r.auctionId}</td>`
       + `<td class="name">`
         + `<span class="item-name" data-id="${r.templateId}" title="Clique para nomear este item">`
           + `${esc(itemName(r.templateId))}</span>`
         + `<span class="qty-inline">×${r.count}</span>`
         + `<div class="muted">#${r.templateId}</div></td>`
-      + `<td class="num">${r.count}</td>`
-      + `<td class="${time === 'Expirado' ? 'expired' : ''}">${time}</td>`
-      + `<td><span class="seller" data-id="${r.sellerId}" data-name="${esc(r.seller)}"`
+      + `<td class="mid">${r.count}</td>`
+      + `<td class="mid ${time === 'Expirado' ? 'expired' : ''}">${time}</td>`
+      + `<td class="mid"><span class="seller" data-id="${r.sellerId}" data-name="${esc(r.seller)}"`
         + ` title="Ver só os itens deste vendedor">${esc(r.seller)}</span></td>`
-      + `<td class="num">${money(r.price)}`
-        + (r.mouthful > 0 ? `<div class="fixed">${money(r.mouthful)} fixo</div>` : '')
-      + '</td></tr>';
+      + `<td class="price">`
+        + `<div class="price-box">`
+          + (r.mouthful > 0 ? `<span class="tag-fixo">Preço<br>fixo</span>` : '')
+          + `<div class="price-nums">`
+            + `<div class="price-bid${r.mouthful > 0 ? '' : ' solo'}">${money(r.price)}</div>`
+            + (r.mouthful > 0 ? `<div class="price-fixed">${money(r.mouthful)}</div>` : '')
+          + `</div>`
+        + `</div>`
+      + `</td>`
+      + `<td class="mid">${bell(r.auctionId)}</td>`
+      + '</tr>';
   }).join('');
+}
+
+const BELL_PATH = 'M8 1.4a3.6 3.6 0 0 0-3.6 3.6v2.7L2.8 10h10.4l-1.6-2.3V5A3.6 3.6 0 0 0 8 1.4Z'
+  + 'm0 13.2a1.9 1.9 0 0 0 1.9-1.8H6.1A1.9 1.9 0 0 0 8 14.6Z';
+
+function bell(auctionId) {
+  const on = isWatched(auctionId);
+  return `<button type="button" class="bell ${on ? 'on' : ''}" data-watch="${auctionId}"`
+    + ` title="${on ? 'Parar de vigiar este leilão' : 'Avisar quando houver lance ou encerrar'}">`
+    + `<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">`
+    + `<path d="${BELL_PATH}"/></svg></button>`;
 }
 
 function renderChip() {
@@ -967,9 +1173,47 @@ function renderPanel() {
     : '<span class="empty">Nenhum nome ainda.</span>';
 }
 
+function renderWatch() {
+  const list = Object.values(watched).sort((a, b) => (a.endsAt ?? 0) - (b.endsAt ?? 0));
+
+  document.getElementById('watchCount').textContent = list.length;
+  document.getElementById('watchList').innerHTML = list.length
+    // The AuctionID is what tells two watched listings apart; the item name
+    // cannot, because the same item is auctioned by several sellers at once.
+    ? list.map(w => `<div class="watch-row">`
+        + `<span class="watch-name" title="${esc(itemName(w.templateId))} — ${esc(w.seller)}">`
+          + `#${w.auctionId}</span>`
+        + `<span class="watch-bid">${coupons(w.price)}</span>`
+        + `<button type="button" class="del" data-unwatch="${w.auctionId}"`
+          + ` title="Parar de vigiar">✕</button></div>`).join('')
+    : '<span class="empty">Clique no sino de um item para vigiar.</span>';
+}
+
+const clock = ts => new Date(ts).toLocaleString('pt-BR',
+  { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+function renderEvents() {
+  // e.item is the shape older entries were stored in, before the event started
+  // carrying the templateId.
+  const label = e => e.templateId ? itemName(e.templateId) : (e.item || '');
+
+  document.getElementById('eventCount').textContent = events.length;
+  document.getElementById('eventList').innerHTML = events.length
+    ? events.map(e => `<div class="event">`
+        + `<span class="event-when">${clock(e.at)}</span>`
+        + `<span class="event-head">`
+          + (e.auctionId ? `Leilão #${e.auctionId} · ` : '')
+          + `${esc(label(e))}</span>`
+        + `<span class="event-text">${esc(e.text)}</span>`
+      + `</div>`).join('')
+    : '<span class="empty">Nada ainda.</span>';
+}
+
 function redraw() {
   renderRows();
   renderPanel();
+  renderWatch();
+  renderEvents();
 }
 
 /* ---------- name editing ---------- */
@@ -1021,6 +1265,218 @@ function exportNames() {
   a.download = 'names.json';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ---------- watching ---------- */
+
+// Watching is per AuctionID, never per item type: a type would mean sweeping all
+// ~220 pages every cycle. A concrete listing costs almost nothing, because the
+// server filters by seller — so one request covers every watched auction of that
+// seller, however many there are.
+let watched = {};      // auctionId -> last known snapshot
+let events  = [];      // newest first
+let polling = false;
+let pollTimer = null;
+let soonTimer = null;
+
+function loadJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch { return fallback; }
+}
+
+function saveJson(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private tab */ }
+}
+
+const saveWatch  = () => saveJson(LS_WATCH, watched);
+const saveEvents = () => saveJson(LS_EVENTS, events);
+
+function snapshot(r) {
+  return {
+    auctionId: r.auctionId, sellerId: r.sellerId, seller: r.seller,
+    templateId: r.templateId, count: r.count,
+    buyerId: r.buyerId, buyerName: r.buyerName,
+    price: r.price, mouthful: r.mouthful, endsAt: r.endsAt,
+    endedNotified: false, warnedSoon: false,
+  };
+}
+
+function isWatched(auctionId) { return watched[auctionId] !== undefined; }
+
+function toggleWatch(auctionId) {
+  if (isWatched(auctionId)) {
+    delete watched[auctionId];
+  } else {
+    const row = rows.find(r => r.auctionId === auctionId);
+    if (!row) return;
+    watched[auctionId] = snapshot(row);
+    askPermission();
+  }
+  saveWatch();
+  redraw();
+  schedulePoll();
+  checkEndingSoon();   // an auction already inside the window warns right away
+}
+
+// Deliberately separate from poll(): the end time was computed from BeginDate +
+// ValidDate when the row was read, so "about to end" is arithmetic on a
+// timestamp we already hold. It costs no request, which is why it can run every
+// 30 seconds instead of riding the two-minute sweep and drifting by up to two
+// minutes.
+function checkEndingSoon() {
+  let changed = false;
+
+  for (const w of Object.values(watched)) {
+    if (w.warnedSoon || w.endsAt === null) continue;
+    const left = w.endsAt - Date.now();
+    if (left > WARN_MS) continue;
+
+    // Marked even when the window has already passed, so a stale watch does not
+    // fire a "5 minutes left" long after the auction is over.
+    w.warnedSoon = true;
+    changed = true;
+    if (left > 0) pushEvent(w, `Termina em ${Math.max(1, Math.round(left / 60e3))} min.`);
+  }
+
+  if (changed) {
+    saveWatch();
+    renderWatch();
+    renderEvents();
+  }
+}
+
+/* ---------- notifications ---------- */
+
+function askPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+}
+
+// The history is the source of truth; the system notification is a courtesy on
+// top of it. Denying permission costs you the popup, not the record.
+// Text is stored raw and escaped at render time, because a Notification body is
+// plain text: escaping up front would show "Fulano&lt;3" in the popup.
+function pushEvent(w, text) {
+  // templateId, not the resolved name: naming the item later then fixes the
+  // whole history retroactively instead of leaving old entries saying "Item #".
+  events.unshift({ at: Date.now(), auctionId: w.auctionId, templateId: w.templateId, text });
+  events = events.slice(0, MAX_EVENTS);
+  saveEvents();
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    // The title identifies which listing, the body says what happened. A system
+    // notification truncates hard, so the identity has to be in the title.
+    try {
+      new Notification(`Leilão #${w.auctionId}`, {
+        body: `${itemName(w.templateId)} — ${text}`,
+        tag: 'ddah-' + w.auctionId,
+      });
+    } catch { /* some browsers refuse outside a user gesture */ }
+  }
+}
+
+/* ---------- polling ---------- */
+
+// Every page of one seller's auctions, keyed by AuctionID. Paging matters: a
+// seller with more than 50 listings would otherwise look like the watched item
+// had vanished, which reads as "sold".
+async function fetchSeller(sellerId) {
+  const map = new Map();
+  let page = 1, total = Infinity;
+
+  while ((page - 1) * PAGE_SIZE < total && page <= 40) {
+    const p = new URLSearchParams({
+      page, name: '', type: -1, pay: -1,
+      userID: sellerId, buyID: -1, order: 4, sort: true, Auctions: '',
+    });
+    const res = await fetch(ENDPOINT + '?' + p);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const parsed = parse(await res.text());
+    parsed.rows.forEach(r => map.set(r.auctionId, r));
+    total = parsed.total;
+    page++;
+  }
+  return map;
+}
+
+function compare(w, now) {
+  if (!now) {
+    // Gone from the listing. endsAt is what tells the two endings apart, and it
+    // needs no request: it was computed from BeginDate + ValidDate.
+    const expired = w.endsAt !== null && Date.now() >= w.endsAt - 60e3;
+    pushEvent(w, expired
+      ? (w.buyerId
+          ? `Leilão encerrado. Arrematado por ${w.buyerName} a ${coupons(w.price)}.`
+          : 'Leilão encerrado sem lances.')
+      : `Comprado direto${w.mouthful ? ' por ' + coupons(w.mouthful) : ''}.`);
+    delete watched[w.auctionId];
+    return;
+  }
+
+  if (now.buyerId !== w.buyerId || now.price !== w.price) {
+    let text;
+    if (!w.buyerId && now.buyerId) {
+      text = `${now.buyerName} lançou ${coupons(now.price)}.`;
+    } else if (now.buyerId && now.buyerId !== w.buyerId) {
+      // The second figure stays bare: the unit was already established by the
+      // first one, two words apart.
+      text = `${now.buyerName} cobriu o lance: ${coupons(now.price)} `
+           + `(antes ${w.buyerName || 'ninguém'}, ${money(w.price)}).`;
+    } else {
+      text = `Novo lance: ${coupons(now.price)}.`;
+    }
+    pushEvent(w, text);
+  }
+
+  // Still listed but past its end time: report once and keep watching, since the
+  // server may only drop it from the listing on its next pass.
+  if (!w.endedNotified && now.endsAt !== null && Date.now() >= now.endsAt) {
+    pushEvent(w, 'Tempo esgotado.');
+    w.endedNotified = true;
+  }
+
+  Object.assign(w, {
+    buyerId: now.buyerId, buyerName: now.buyerName,
+    price: now.price, mouthful: now.mouthful, endsAt: now.endsAt,
+  });
+}
+
+// Called on load too, which is what replays whatever happened while the tab was
+// closed: the stored snapshot is simply older than usual.
+async function poll() {
+  const ids = Object.keys(watched);
+  if (polling || !ids.length) return;
+  polling = true;
+
+  try {
+    const bySeller = new Map();
+    for (const id of ids) {
+      const w = watched[id];
+      if (!bySeller.has(w.sellerId)) bySeller.set(w.sellerId, []);
+      bySeller.get(w.sellerId).push(w);
+    }
+
+    for (const [sellerId, list] of bySeller) {
+      // One seller failing must not abort the others.
+      let found;
+      try { found = await fetchSeller(sellerId); }
+      catch { continue; }
+      for (const w of list) compare(w, found.get(w.auctionId));
+    }
+
+    saveWatch();
+    redraw();
+  } finally {
+    polling = false;
+  }
+}
+
+function schedulePoll() {
+  clearInterval(pollTimer);
+  clearInterval(soonTimer);
+  if (!Object.keys(watched).length) return;
+  pollTimer = setInterval(poll, POLL_MS);
+  soonTimer = setInterval(checkEndingSoon, SOON_MS);
 }
 
 /* ---------- seller lookup ---------- */
@@ -1079,6 +1535,11 @@ async function doSearch() {
 
   state.name = document.getElementById('searchInput').value.trim();
   state.page = 1;
+
+  // Every search returns to the default ordering: cheapest first. A column you
+  // clicked earlier holds until the next search, not past it.
+  state.order = 4;
+  state.desc  = false;
 
   // An empty seller field means "all sellers".
   if (!target) {
@@ -1171,6 +1632,9 @@ document.getElementById('head').addEventListener('click', e => {
 });
 
 document.getElementById('body').addEventListener('click', e => {
+  const bellBtn = e.target.closest('[data-watch]');
+  if (bellBtn) return toggleWatch(+bellBtn.dataset.watch);
+
   const nameCell = e.target.closest('.item-name');
   if (nameCell) return startEdit(nameCell);
 
@@ -1214,6 +1678,18 @@ document.getElementById('savedList').addEventListener('click', e => {
 
 document.getElementById('exportBtn').addEventListener('click', exportNames);
 
+document.getElementById('watchList').addEventListener('click', e => {
+  const btn = e.target.closest('[data-unwatch]');
+  if (!btn) return;
+  toggleWatch(+btn.dataset.unwatch);
+});
+
+document.getElementById('clearEvents').addEventListener('click', () => {
+  events = [];
+  saveEvents();
+  renderEvents();
+});
+
 document.getElementById('prev').addEventListener('click', () => {
   if (state.page > 1) { state.page--; refresh(); }
 });
@@ -1224,12 +1700,16 @@ document.getElementById('next').addEventListener('click', () => {
 });
 
 (async function init() {
-  // Open only where the panel has its own column; in the stacked layout it is a
-  // drawer that would steal half the auction's screen, which is what the person
-  // came to see. The breakpoint mirrors the one in the stylesheet.
-  document.getElementById('panel').open = window.matchMedia('(min-width: 1320px)').matches;
+  // Open only where the panels have their own columns; in the stacked layout
+  // they are drawers that would steal half the auction's screen, which is what
+  // the person came to see. The breakpoint mirrors the one in the stylesheet.
+  const wide = window.matchMedia('(min-width: 1320px)').matches;
+  document.getElementById('panel').open = wide;
+  document.getElementById('history').open = wide;
 
   localNames   = loadLocal();
+  watched      = loadJson(LS_WATCH, {});
+  events       = loadJson(LS_EVENTS, []);
   defaultNames = await loadDefaults();
 
   renderHint(defaultsFailed
@@ -1237,7 +1717,13 @@ document.getElementById('next').addEventListener('click', () => {
     : 'Exporte e substitua o names.json na raiz do projeto para todo mundo ver esses nomes.',
     defaultsFailed);
 
-  refresh();
+  await refresh();
+
+  // Runs immediately as well as on the timer: the first sweep is what reports
+  // whatever happened while the tab was closed.
+  schedulePoll();
+  checkEndingSoon();
+  poll();
 })();
 </script>
 </body>

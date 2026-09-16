@@ -18,7 +18,7 @@ Requires Docker with the Compose plugin.
 
 ```sh
 git clone <repository-url>
-cd ddauctionhouse
+cd ddt-auction
 docker compose up
 ```
 

@@ -1,7 +1,7 @@
 services:
   web:
     image: nginx:alpine
-    container_name: ddauctionhouse
+    container_name: ddt-auction
     # The host port comes from .env (or from PORT in the environment); 8080 is
     # only the default for people who configured nothing. Inside the container
     # nginx always listens on 80, so only the left-hand side changes.
