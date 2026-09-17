@@ -838,6 +838,15 @@
 
   .event-text { display: block; }
 
+  /* The whole row is the target, not just the nickname: an event line has no
+     other click action to compete with, and the name is usually the shortest
+     word in it. Only rows that carry a seller get the affordance — entries
+     stored before the seller was recorded have nothing to filter by. */
+  .event[data-id] { cursor: pointer; }
+  .event[data-id]:hover { background: rgba(232, 194, 104, .1); }
+
+  .event-seller { font-weight: 400; color: var(--parch-300); }
+
   /* Stacked, the card is as tall as its header plus this cap, and the body
      scrolls past it. 26vh is what lets both drawers be open at once and still
      leave the table something to show. */
@@ -1331,11 +1340,18 @@ function renderEvents() {
 
   document.getElementById('eventCount').textContent = events.length;
   document.getElementById('eventList').innerHTML = events.length
-    ? events.map(e => `<div class="event">`
+    // The dataset names match what filterBySeller() reads, so the row plugs
+    // into the same filter the table and the watch list use.
+    ? events.map(e => `<div class="event"`
+        + (e.sellerId ? ` data-id="${e.sellerId}" data-name="${esc(e.seller)}"`
+                      + ` title="Ver só os itens de ${esc(e.seller)}"` : '')
+        + `>`
         + `<span class="event-when">${clock(e.at)}</span>`
         + `<span class="event-head">`
           + (e.auctionId ? `Leilão #${e.auctionId} · ` : '')
-          + `${esc(label(e))}</span>`
+          + `${esc(label(e))}`
+          + (e.seller ? ` <span class="event-seller">de ${esc(e.seller)}</span>` : '')
+        + `</span>`
         + `<span class="event-text">${esc(e.text)}</span>`
       + `</div>`).join('')
     : '<span class="empty">Nada ainda.</span>';
@@ -1525,7 +1541,7 @@ function pushEvent(w, text) {
   // templateId, not the resolved name: naming the item later then fixes the
   // whole history retroactively instead of leaving old entries saying "Item #".
   events.unshift({ at: Date.now(), auctionId: w.auctionId, templateId: w.templateId,
-                   count: w.count, text });
+                   count: w.count, sellerId: w.sellerId, seller: w.seller, text });
   events = events.slice(0, MAX_EVENTS);
   saveEvents();
 
@@ -1534,7 +1550,7 @@ function pushEvent(w, text) {
     // notification truncates hard, so the identity has to be in the title.
     try {
       new Notification(`Leilão #${w.auctionId}`, {
-        body: `${itemLabel(w.templateId, w.count)} — ${text}`,
+        body: `${itemLabel(w.templateId, w.count)} de ${w.seller} — ${text}`,
         tag: 'ddah-' + w.auctionId,
       });
     } catch { /* some browsers refuse outside a user gesture */ }
@@ -1869,6 +1885,11 @@ document.getElementById('watchList').addEventListener('click', e => {
 
   const el = e.target.closest('.watch-seller');
   if (el) filterBySeller(el);
+});
+
+document.getElementById('eventList').addEventListener('click', e => {
+  const row = e.target.closest('.event[data-id]');
+  if (row) filterBySeller(row);
 });
 
 document.getElementById('clearEvents').addEventListener('click', () => {
