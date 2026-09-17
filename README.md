@@ -38,6 +38,31 @@ Or set it inline, without creating any file:
 PORT=9000 docker compose up
 ```
 
+## Charts
+
+The card holding the table has two tabs. **Tabela** is the listing; **Gráficos**
+ranks the top 10 items by volume on the market.
+
+The server offers no aggregate by item — `type` only groups coarse categories and
+`name` is a text search — so the ranking is computed in the browser from every
+page of the listing. That is ~260 requests and ~7.5 MB of XML (about 10 seconds),
+against a server you do not own, so it is deliberate about when it runs:
+
+- never on page load — only when the **Gráficos** tab is opened
+- once per session; the same read is reused until **Atualizar**
+- six requests in flight at a time, with progress and a cancel button
+
+Each row carries three numbers. The bar is total **units** on sale; beside it are
+the number of **listings** and the average price **per unit**. Units and listings
+rank differently — an item sold in stacks tops the units ranking on a handful of
+listings, while a one-per-listing item can lead on listings and barely register on
+units — which is why both are shown rather than one standing in for the other.
+
+The average is weighted by units (total coupons asked ÷ total units), not the mean
+of each listing's unit price: a 500-unit lot and a 1-unit lot are not equal
+evidence of what a unit costs. `Price` is the current bid, or the opening price
+where nobody has bid.
+
 ## Item names
 
 The DD Clássico server never returns item names, only a numeric `TemplateID` —

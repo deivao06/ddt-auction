@@ -411,6 +411,116 @@
   .msg { padding: 26px; text-align: center; color: var(--ink-soft); }
   .msg.error { color: var(--danger); font-weight: 600; }
 
+  /* ---- tabs ---- */
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+
+  .tab {
+    padding: 7px 16px;
+    border: var(--edge);
+    border-bottom-color: transparent;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    background: rgba(0, 0, 0, .25);
+    color: var(--gold-500);
+    font-size: 13px;
+    font-family: var(--ui);
+  }
+  .tab:hover { color: var(--gold-300); }
+  .tab.is-on { background: rgba(0, 0, 0, .45); color: var(--gold-100); font-weight: 600; }
+
+  /* The pane inherits the frame's column stretch, so the table keeps filling the
+     card. display:flex would beat the hidden attribute, so it is restored here. */
+  .pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .pane[hidden] { display: none; }
+
+  /* ---- charts ---- */
+
+  .chart-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+  .chart-title {
+    flex: 1 1 auto;
+    margin: 0;
+    color: var(--gold-300);
+    font-size: 14px;
+  }
+
+  .chart-note {
+    margin: 0 0 10px;
+    color: rgba(242, 216, 148, .5);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .chart-note.warn { color: var(--accent); }
+
+  .chart-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 16px;
+    background: var(--parch-200);
+    border: 1px solid var(--wood-800);
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 3px 10px rgba(90, 58, 28, .3);
+  }
+
+  /* One row per item: name, bar, value. The grid is what lines the bars up on a
+     single baseline — the left edge of the track column. */
+  .chart-row {
+    display: grid;
+    grid-template-columns: minmax(0, 132px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 3px 4px;
+    border-radius: 4px;
+  }
+  .chart-row + .chart-row { margin-top: 2px; }
+  .chart-row:hover { background: rgba(90, 58, 28, .12); }
+
+  .chart-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink);
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .chart-track { height: 18px; }
+
+  /* Square where it meets the baseline, rounded only at the data end. A single
+     series means a single colour: shading each bar by its own value would burn
+     the colour channel re-saying what the bar length already says. */
+  .chart-fill {
+    height: 100%;
+    min-width: 2px;
+    border-radius: 0 4px 4px 0;
+    background: #8c3f10;
+  }
+
+  /* Two lines, right-aligned: the bar's own value on top, the numbers that
+     qualify it below. On one line the row ran wider than the panel. */
+  .chart-val {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.35;
+    color: var(--ink);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .chart-val .num { font-weight: 600; }
+  .chart-val .sub { color: var(--ink-soft); font-size: 11px; }
+
+  .chart-empty { padding: 26px; text-align: center; color: var(--ink-soft); font-size: 12px; }
+
   /* ---- chips and notices ---- */
   .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip-bar:not(:empty) { margin-bottom: 10px; }
@@ -950,29 +1060,49 @@
     </details>
 
     <div class="frame">
-      <form class="search" id="searchForm">
-        <input id="searchInput" type="text" placeholder="nome do item" autocomplete="off">
-        <input id="sellerInput" type="text" placeholder="vendedor (opcional)" autocomplete="off">
-        <button type="submit" class="btn" id="searchBtn">Pesquisar</button>
-      </form>
-
-      <div class="chip-bar" id="chipBar"></div>
-      <div class="chip-bar" id="notice"></div>
-
-      <div class="table-wrap scroll" id="tableWrap">
-        <table>
-          <thead><tr id="head"></tr></thead>
-          <tbody id="body"></tbody>
-        </table>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab is-on" id="tabTable" role="tab"
+                aria-selected="true" aria-controls="paneTable" data-pane="paneTable">Tabela</button>
+        <button type="button" class="tab" id="tabChart" role="tab"
+                aria-selected="false" aria-controls="paneChart" data-pane="paneChart">Gráficos</button>
       </div>
 
-      <div class="pager">
-        <span class="total" id="total"></span>
-        <span class="pages">
-          <span class="count" id="count">-/-</span>
-          <button id="prev" type="button">◀</button>
-          <button id="next" type="button">▶</button>
-        </span>
+      <div class="pane" id="paneTable" role="tabpanel" aria-labelledby="tabTable">
+        <form class="search" id="searchForm">
+          <input id="searchInput" type="text" placeholder="nome do item" autocomplete="off">
+          <input id="sellerInput" type="text" placeholder="vendedor (opcional)" autocomplete="off">
+          <button type="submit" class="btn" id="searchBtn">Pesquisar</button>
+        </form>
+
+        <div class="chip-bar" id="chipBar"></div>
+        <div class="chip-bar" id="notice"></div>
+
+        <div class="table-wrap scroll" id="tableWrap">
+          <table>
+            <thead><tr id="head"></tr></thead>
+            <tbody id="body"></tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <span class="total" id="total"></span>
+          <span class="pages">
+            <span class="count" id="count">-/-</span>
+            <button id="prev" type="button">◀</button>
+            <button id="next" type="button">▶</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="pane" id="paneChart" role="tabpanel" aria-labelledby="tabChart" hidden>
+        <div class="chart-bar">
+          <h3 class="chart-title">Top 10 itens por volume no mercado</h3>
+          <button type="button" class="btn" id="chartRun">Carregar</button>
+        </div>
+
+        <p class="chart-note" id="chartNote"></p>
+
+        <div class="chart-wrap scroll" id="chartWrap"></div>
       </div>
     </div>
 
@@ -1448,6 +1578,164 @@ function importNames(text) {
     + (bad  ? ` ${bad} ignorado(s) por formato.` : ''), !added);
 }
 
+/* ---------- market chart ---------- */
+
+// The server offers no aggregate by item: `type` only groups coarse categories
+// and `name` is a text search, so ranking items means reading every page and
+// counting here. That is ~260 requests against someone else's server, which is
+// why it never runs on page load — only when the tab is opened, and the result
+// is then kept for the session.
+const TOP_N        = 10;
+const SWEEP_WORKERS = 6;
+const SWEEP_MAX_PAGES = 400;   // a runaway `total` must not turn into a flood
+
+let market   = null;   // the last full read of the market
+let sweeping = null;   // AbortController while a read is in flight
+
+// Deliberately not buildUrl(): that one carries the table's filters, and the
+// ranking is about the whole market, not the current search.
+function sweepUrl(page) {
+  const p = new URLSearchParams({
+    page, name: '', type: -1, pay: -1, userID: -1, buyID: -1,
+    order: 4, sort: true, Auctions: '',
+  });
+  return ENDPOINT + '?' + p;
+}
+
+async function sweepPage(page, signal) {
+  const res = await fetch(sweepUrl(page), { signal });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return parse(await res.text());
+}
+
+async function sweepMarket(signal, onProgress) {
+  const first = await sweepPage(1, signal);
+  const pages = Math.min(Math.ceil(first.total / PAGE_SIZE), SWEEP_MAX_PAGES);
+
+  const units = new Map(), listings = new Map(), coupons = new Map();
+  let done = 0, auctions = 0, totalUnits = 0;
+
+  const take = rows => {
+    for (const r of rows) {
+      units.set(r.templateId, (units.get(r.templateId) ?? 0) + r.count);
+      listings.set(r.templateId, (listings.get(r.templateId) ?? 0) + 1);
+      // Price is the current bid, or the opening price where nobody has bid —
+      // the asking price either way, which is what an average should be over.
+      coupons.set(r.templateId, (coupons.get(r.templateId) ?? 0) + r.price);
+      auctions++;
+      totalUnits += r.count;
+    }
+    onProgress(++done, pages);
+  };
+
+  take(first.rows);
+
+  // A shared cursor rather than fixed batches: batched, every group waits on its
+  // slowest page and the tail of the pool idles.
+  let next = 2;
+  const worker = async () => {
+    while (next <= pages) {
+      take((await sweepPage(next++, signal)).rows);
+    }
+  };
+  await Promise.all(Array.from({ length: SWEEP_WORKERS }, worker));
+
+  // Weighted by units rather than the mean of each listing's unit price: a
+  // 500-unit lot and a 1-unit lot are not equal evidence of what a unit costs.
+  const items = [...units].map(([templateId, u]) => ({
+      templateId,
+      units:    u,
+      listings: listings.get(templateId),
+      perUnit:  coupons.get(templateId) / u,
+    }))
+    .sort((a, b) => b.units - a.units);
+
+  return { at: Date.now(), pages, auctions, totalUnits, items };
+}
+
+function chartNote(text, warn) {
+  const el = document.getElementById('chartNote');
+  el.textContent = text;
+  el.classList.toggle('warn', !!warn);
+}
+
+// One decimal only where the unit price is small enough for it to matter: most
+// consumables trade under 10 cupons, where rounding to 0 would flatten the
+// difference between 4,5 and 9,4.
+const unitPrice = n => n.toLocaleString('pt-BR', { maximumFractionDigits: n < 10 ? 1 : 0 });
+
+function renderChart() {
+  const wrap = document.getElementById('chartWrap');
+
+  if (!market) {
+    wrap.innerHTML = '<p class="chart-empty">Sem leitura do mercado ainda.</p>';
+    return;
+  }
+
+  const top = market.items.slice(0, TOP_N);
+  if (!top.length) {
+    wrap.innerHTML = '<p class="chart-empty">Nenhum item à venda.</p>';
+    return;
+  }
+
+  // Bars are scaled against the leader, not the total: at ~200 distinct items
+  // every share would round to a sliver and the ranking would be unreadable.
+  const max = top[0].units;
+
+  wrap.innerHTML = top.map(it => {
+    const name  = itemName(it.templateId);
+    const share = (100 * it.units / market.totalUnits).toFixed(1);
+    const avg   = unitPrice(it.perUnit);
+    return `<div class="chart-row" title="${esc(name)} — ${money(it.units)} unidades`
+         + ` em ${money(it.listings)} anúncio(s), ${share}% das unidades à venda.`
+         + ` Média de ${avg} cupons por unidade.">`
+      + `<div class="chart-label">${esc(name)}</div>`
+      + `<div class="chart-track">`
+        + `<div class="chart-fill" style="width: ${(100 * it.units / max).toFixed(1)}%"></div>`
+      + `</div>`
+      + `<div class="chart-val">`
+        + `<span class="num">${money(it.units)} un</span>`
+        + `<span class="sub">${money(it.listings)} anúncios · ~${avg} cup/un</span>`
+      + `</div>`
+    + `</div>`;
+  }).join('');
+}
+
+async function runSweep() {
+  // The same button cancels, so a read that turns out slower than expected does
+  // not have to be waited out.
+  if (sweeping) return sweeping.abort();
+
+  const btn = document.getElementById('chartRun');
+  sweeping = new AbortController();
+  btn.textContent = 'Cancelar';
+
+  try {
+    // Assigned only on success, so a cancelled read leaves the previous one up.
+    market = await sweepMarket(sweeping.signal, (done, total) =>
+      chartNote(`Lendo página ${money(done)} de ${money(total)}…`));
+    chartNote(`${money(market.auctions)} anúncios em ${money(market.pages)} páginas,`
+            + ` ${money(market.items.length)} itens distintos. Lido às ${clock(market.at)}.`);
+    renderChart();
+  } catch (err) {
+    chartNote(err.name === 'AbortError'
+      ? 'Leitura cancelada.'
+      : 'Não consegui ler o mercado: ' + err.message, true);
+  } finally {
+    sweeping = null;
+    btn.textContent = 'Atualizar';
+  }
+}
+
+function showPane(paneId) {
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.pane === paneId;
+    t.classList.toggle('is-on', on);
+    t.setAttribute('aria-selected', String(on));
+  });
+  document.querySelectorAll('.pane').forEach(p => { p.hidden = p.id !== paneId; });
+}
+
 /* ---------- watching ---------- */
 
 // Watching is per AuctionID, never per item type: a type would mean sweeping all
@@ -1863,6 +2151,17 @@ document.getElementById('savedList').addEventListener('click', e => {
   redraw();
 });
 
+document.querySelector('.tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  showPane(tab.dataset.pane);
+  // First open reads the market; after that the session's copy is reused until
+  // Atualizar is pressed. Opening a tab is a deliberate act, page load is not.
+  if (tab.dataset.pane === 'paneChart' && !market && !sweeping) runSweep();
+});
+
+document.getElementById('chartRun').addEventListener('click', runSweep);
+
 document.getElementById('exportBtn').addEventListener('click', exportNames);
 
 document.getElementById('importBtn').addEventListener('click', () => {
@@ -1919,6 +2218,8 @@ document.getElementById('next').addEventListener('click', () => {
   watched      = loadJson(LS_WATCH, {});
   events       = loadJson(LS_EVENTS, []);
   defaultNames = await loadDefaults();
+
+  renderChart();
 
   renderHint(defaultsFailed
     ? 'names.json não carregou — abrindo por file://? Só os nomes deste navegador estão ativos.'
