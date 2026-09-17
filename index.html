@@ -688,6 +688,11 @@
     color: rgba(242, 216, 148, .6);
   }
 
+  /* Export and import share one line: they are the two halves of the same
+     round trip, and the panel has no vertical room to spare. */
+  .io-row { display: flex; gap: 6px; margin-top: 18px; }
+  .io-row .btn-ghost { margin-top: 0; }
+
   .btn-ghost {
     width: 100%;
     margin-top: 18px;
@@ -757,7 +762,11 @@
      when the panel is too narrow; justify-content keeps the pair packed left
      instead of stretched across the row. */
   .watch-item {
-    flex: 1 1 auto;
+    /* Fixed width, so the seller's share never depends on how long the item
+       name happens to be. 0 1 rather than 0 0 on the shorthand: it holds the
+       150px wherever there is room, which is every real panel width, and gives
+       way instead of overflowing the row if there is not. */
+    flex: 0 1 150px;
     min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, max-content) auto;
@@ -768,8 +777,9 @@
   }
 
   .watch-who {
-    flex: 0 1 auto;
-    max-width: 50%;   /* a long nickname must not squeeze the item off the row */
+    /* Takes whatever the fixed left column leaves, and min-width: 0 is what
+       lets a long nickname ellipsise instead of pushing the ✕ out of the row. */
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -815,6 +825,10 @@
   .watch-fixed { color: var(--parch-400); font-variant-numeric: tabular-nums; }
 
   .watch-fixed .lbl { text-transform: uppercase; font-size: 9px; letter-spacing: .3px; }
+
+  /* Anchored right, so the ✕ lands in the same place on every row instead of
+     trailing a nickname of whatever length. */
+  .watch-who .del { margin-left: auto; }
 
   .watch-row .del {
     flex: 0 0 auto;
@@ -928,7 +942,13 @@
             <div class="list-scroll scroll" id="savedList"></div>
           </section>
 
-          <button type="button" class="btn-ghost" id="exportBtn">Exportar names.json</button>
+          <div class="io-row">
+            <button type="button" class="btn-ghost" id="exportBtn"
+                    title="Baixar names.json com todos os nomes">Exportar</button>
+            <button type="button" class="btn-ghost" id="importBtn"
+                    title="Mesclar um names.json com os nomes deste navegador">Importar</button>
+          </div>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
           <p class="panel-hint" id="panelHint"></p>
         </div>
 
@@ -1403,6 +1423,39 @@ function exportNames() {
   URL.revokeObjectURL(url);
 }
 
+// Merges, never replaces: a partial file must not wipe names this browser
+// already knows. Everything lands in localNames, the only layer a browser can
+// write — names.json itself is served, not stored — so an import shows up in
+// "Salvos" as your own override, with the ✕ to drop it again.
+function importNames(text) {
+  let data;
+  try { data = JSON.parse(text); }
+  catch { return renderHint('Arquivo inválido: não é JSON.', true); }
+
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return renderHint('Arquivo inválido: esperava um objeto { "7015": "nome" }.', true);
+  }
+
+  let added = 0, same = 0, bad = 0;
+
+  for (const [key, value] of Object.entries(data)) {
+    const id   = Number(key);
+    const name = typeof value === 'string' ? value.trim() : '';
+    if (!Number.isFinite(id) || !name) { bad++; continue; }
+    // Skipping what already matches keeps importing this instance's own
+    // names.json from turning every default into a personal override.
+    if (name === (localNames[id] ?? defaultNames[id])) { same++; continue; }
+    localNames[id] = name;
+    added++;
+  }
+
+  if (added) { saveLocal(); redraw(); }
+
+  renderHint(`${added} nome(s) importado(s).`
+    + (same ? ` ${same} já valia(m).` : '')
+    + (bad  ? ` ${bad} ignorado(s) por formato.` : ''), !added);
+}
+
 /* ---------- watching ---------- */
 
 // Watching is per AuctionID, never per item type: a type would mean sweeping all
@@ -1819,6 +1872,20 @@ document.getElementById('savedList').addEventListener('click', e => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', exportNames);
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('importFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try { importNames(await file.text()); }
+  catch { renderHint('Não consegui ler o arquivo.', true); }
+  // Cleared so that picking the same file twice in a row still fires a change
+  // event: without this the second pick is a no-op.
+  e.target.value = '';
+});
 
 document.getElementById('watchList').addEventListener('click', e => {
   const btn = e.target.closest('[data-unwatch]');

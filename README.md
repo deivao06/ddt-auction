@@ -56,9 +56,16 @@ Names come from two layers:
 | Personal override | the browser's `localStorage` | only you, in that browser |
 
 What you type always lands in the personal layer. To promote your names to the
-instance default, click **Exportar names.json** in the panel, replace the file in
-the project root and commit it. The `✕` next to a name discards your override and
-restores the `names.json` value, if there is one.
+instance default, click **Exportar** in the panel, replace the file in the project
+root and commit it. The `✕` next to a name discards your override and restores the
+`names.json` value, if there is one.
+
+**Importar** reads a `names.json` back in — useful to carry your names to another
+browser, or to pick up a file someone else exported. It merges rather than
+replaces, so a partial file never wipes names you already have, and entries that
+already match what you see are skipped instead of being copied into your personal
+layer. Whatever it brings in lands in the personal layer too: importing never
+writes `names.json` itself, which is a served file, not a stored one.
 
 `names.json` is served from the volume, so editing the file and reloading the page
 is enough — no need to restart the container.
@@ -74,6 +81,10 @@ with the names saved in your browser only.
 The project is fully static and the DD Clássico auction API answers with
 `Access-Control-Allow-Origin: *`, so no application server and no proxy are
 needed. On GitHub Pages, point it at the `main` branch, folder `/ (root)`.
+
+Note that `nginx.conf` only applies to the Docker setup. Pages serves the whole
+published branch, so every committed file is reachable there — keep out of the
+repository anything the allowlist was protecting.
 
 ## Files
 
