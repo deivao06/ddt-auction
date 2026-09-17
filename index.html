@@ -1008,6 +1008,13 @@ function itemName(id) {
   return nameOf(id) || 'Item #' + id;
 }
 
+// Away from the table the lot size has no column of its own, so it rides along
+// with the name, in the same "×N" the table uses. count is optional because
+// events stored before it was recorded have none.
+function itemLabel(id, count) {
+  return itemName(id) + (count > 0 ? ' ×' + count : '');
+}
+
 /* ---------- data ---------- */
 
 // All 9 parameters are required: the handler calls int.Parse/bool.Parse with
@@ -1252,7 +1259,7 @@ const clock = ts => new Date(ts).toLocaleString('pt-BR',
 function renderEvents() {
   // e.item is the shape older entries were stored in, before the event started
   // carrying the templateId.
-  const label = e => e.templateId ? itemName(e.templateId) : (e.item || '');
+  const label = e => e.templateId ? itemLabel(e.templateId, e.count) : (e.item || '');
 
   document.getElementById('eventCount').textContent = events.length;
   document.getElementById('eventList').innerHTML = events.length
@@ -1416,7 +1423,8 @@ function askPermission() {
 function pushEvent(w, text) {
   // templateId, not the resolved name: naming the item later then fixes the
   // whole history retroactively instead of leaving old entries saying "Item #".
-  events.unshift({ at: Date.now(), auctionId: w.auctionId, templateId: w.templateId, text });
+  events.unshift({ at: Date.now(), auctionId: w.auctionId, templateId: w.templateId,
+                   count: w.count, text });
   events = events.slice(0, MAX_EVENTS);
   saveEvents();
 
@@ -1425,7 +1433,7 @@ function pushEvent(w, text) {
     // notification truncates hard, so the identity has to be in the title.
     try {
       new Notification(`Leilão #${w.auctionId}`, {
-        body: `${itemName(w.templateId)} — ${text}`,
+        body: `${itemLabel(w.templateId, w.count)} — ${text}`,
         tag: 'ddah-' + w.auctionId,
       });
     } catch { /* some browsers refuse outside a user gesture */ }
