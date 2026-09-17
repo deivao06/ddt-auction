@@ -746,18 +746,75 @@
   .watch-row + .watch-row,
   .event + .event { margin-top: 4px; }
 
-  .watch-row { display: flex; align-items: center; gap: 8px; }
+  /* Two columns: what is being sold on the left, who is selling it on the
+     right. The left one stacks two lines, so the right one is centred against
+     the pair rather than aligned to either. */
+  .watch-row { display: flex; align-items: stretch; gap: 8px; }
 
-  .watch-name {
+  /* A 2x2 grid, not two stacked lines: it is what puts the quantity and the
+     fixed price in one column, lined up under each other. The first column is
+     sized by the wider of the name and the bid, and gives way to the ellipsis
+     when the panel is too narrow; justify-content keeps the pair packed left
+     instead of stretched across the row. */
+  .watch-item {
     flex: 1 1 auto;
-    font-variant-numeric: tabular-nums;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, max-content) auto;
+    justify-content: start;
+    align-items: baseline;
+    column-gap: 6px;
+    row-gap: 3px;
+  }
+
+  .watch-who {
+    flex: 0 1 auto;
+    max-width: 50%;   /* a long nickname must not squeeze the item off the row */
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 8px;
+    /* The divider spans the content box, not the padding, so it stops short of
+       the row's rounded edges instead of butting into them. */
+    border-left: 1px solid rgba(232, 194, 104, .22);
+  }
+
+  /* The one element that grows, so the slack pushes the seller to the right
+     edge, and the one that gets ellipsised when the panel is too narrow. */
+  .watch-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--gold-300);
+    font-weight: 600;
   }
 
-  .watch-bid { flex: 0 0 auto; color: var(--gold-400); font-variant-numeric: tabular-nums; }
+  /* Its own cell rather than part of the name string: glued to the name it
+     would be the first thing the ellipsis ate, and the count is the point. */
+  .watch-qty { color: var(--parch-300); font-variant-numeric: tabular-nums; }
+
+  /* Same affordance as the seller cell in the table — dotted underline, filter
+     on click — in the panel's colours instead of the parchment's. */
+  .watch-seller {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    border-bottom: 1px dotted rgba(242, 216, 148, .4);
+  }
+  .watch-seller:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .watch-bid { color: var(--gold-400); font-variant-numeric: tabular-nums; }
+
+  /* Dimmer than the bid: the bid is what moves and what the alerts are about,
+     the fixed price is a constant you only glance at. */
+  .watch-fixed { color: var(--parch-400); font-variant-numeric: tabular-nums; }
+
+  .watch-fixed .lbl { text-transform: uppercase; font-size: 9px; letter-spacing: .3px; }
 
   .watch-row .del {
     flex: 0 0 auto;
@@ -1242,14 +1299,29 @@ function renderWatch() {
 
   document.getElementById('watchCount').textContent = list.length;
   document.getElementById('watchList').innerHTML = list.length
-    // The AuctionID is what tells two watched listings apart; the item name
-    // cannot, because the same item is auctioned by several sellers at once.
-    ? list.map(w => `<div class="watch-row">`
-        + `<span class="watch-name" title="${esc(itemName(w.templateId))} — ${esc(w.seller)}">`
-          + `#${w.auctionId}</span>`
-        + `<span class="watch-bid">${coupons(w.price)}</span>`
-        + `<button type="button" class="del" data-unwatch="${w.auctionId}"`
-          + ` title="Parar de vigiar">✕</button></div>`).join('')
+    // The AuctionID is off the row but not gone: it is the only field that tells
+    // two watched listings apart — the same item, from the same seller, can be
+    // up several times at once — so it stays reachable as the row's title. The
+    // seller carries its own title, which is what wins when you hover it.
+    ? list.map(w => `<div class="watch-row" title="Leilão #${w.auctionId}">`
+        // Four cells, always all four: the grid places by source order, so a
+        // dropped one would pull the bid up into the quantity's slot.
+        + `<div class="watch-item">`
+          + `<span class="watch-name">${esc(itemName(w.templateId))}</span>`
+          + `<span class="watch-qty">${w.count > 0 ? '×' + w.count : ''}</span>`
+          + `<span class="watch-bid">${coupons(w.price)}</span>`
+          // Bare number: the unit was already established by the bid beside it.
+          + `<span class="watch-fixed">`
+            + (w.mouthful > 0 ? `<span class="lbl">fixo</span> ${money(w.mouthful)}` : '')
+          + `</span>`
+        + `</div>`
+        + `<div class="watch-who">`
+          + `<span class="watch-seller" data-id="${w.sellerId}" data-name="${esc(w.seller)}"`
+            + ` title="Ver só os itens deste vendedor">${esc(w.seller)}</span>`
+          + `<button type="button" class="del" data-unwatch="${w.auctionId}"`
+            + ` title="Parar de vigiar">✕</button>`
+        + `</div>`
+      + `</div>`).join('')
     : '<span class="empty">Clique no sino de um item para vigiar.</span>';
 }
 
@@ -1696,15 +1768,9 @@ document.getElementById('head').addEventListener('click', e => {
   refresh();
 });
 
-document.getElementById('body').addEventListener('click', e => {
-  const bellBtn = e.target.closest('[data-watch]');
-  if (bellBtn) return toggleWatch(+bellBtn.dataset.watch);
-
-  const nameCell = e.target.closest('.item-name');
-  if (nameCell) return startEdit(nameCell);
-
-  const el = e.target.closest('.seller');
-  if (!el) return;
+// Shared by the seller cell in the table and the seller in the watch list, so
+// the two cannot drift into filtering differently.
+function filterBySeller(el) {
   const id = +el.dataset.id;
   if (!id) return; // without a usable ID, filtering by 0 would return nothing
   state.sellerId   = id;
@@ -1714,6 +1780,17 @@ document.getElementById('body').addEventListener('click', e => {
   document.getElementById('sellerInput').value = el.dataset.name;
   state.page = 1;
   refresh();
+}
+
+document.getElementById('body').addEventListener('click', e => {
+  const bellBtn = e.target.closest('[data-watch]');
+  if (bellBtn) return toggleWatch(+bellBtn.dataset.watch);
+
+  const nameCell = e.target.closest('.item-name');
+  if (nameCell) return startEdit(nameCell);
+
+  const el = e.target.closest('.seller');
+  if (el) filterBySeller(el);
 });
 
 document.getElementById('chipBar').addEventListener('click', e => {
@@ -1745,8 +1822,10 @@ document.getElementById('exportBtn').addEventListener('click', exportNames);
 
 document.getElementById('watchList').addEventListener('click', e => {
   const btn = e.target.closest('[data-unwatch]');
-  if (!btn) return;
-  toggleWatch(+btn.dataset.unwatch);
+  if (btn) return toggleWatch(+btn.dataset.unwatch);
+
+  const el = e.target.closest('.watch-seller');
+  if (el) filterBySeller(el);
 });
 
 document.getElementById('clearEvents').addEventListener('click', () => {
