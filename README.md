@@ -63,6 +63,53 @@ of each listing's unit price: a 500-unit lot and a 1-unit lot are not equal
 evidence of what a unit costs. `Price` is the current bid, or the opening price
 where nobody has bid.
 
+## Following one item
+
+The third tab, **Item**, follows an item's listings instead of the market as a
+whole. Type the item's in-game name and the matches come back as a table — one
+row per item, with its listings, units and average price — and the bell in the
+last column watches it, exactly as it does for an auction in the first tab.
+
+Watched items collect in **Itens vigiados** in the side panel, alongside the
+watched auctions but in their own list: a watched auction names one listing and
+has a price and a deadline, a watched item counts many and has an average.
+Clicking a row reopens the Item tab on that item's search.
+
+Every couple of minutes each watched item reports what changed:
+
+- `Novo anúncio: 250 un por 1.800 cupons, fixo 2.400.`
+- `Fulano lançou 1.048 cupons em 10 un.`
+- `Saiu da listagem: 85 un a 4.000 cupons no preço fixo — comprado ou removido.`
+
+These land in the same **Notificações** panel as the watched auctions, so they are
+clickable and filter the table by the seller.
+
+Watching several items costs less than it looks, because the poll groups them by
+search term: three kinds of `Poção` are three items but one round of requests.
+
+### Why the name, and not the item ID
+
+The `name` parameter is a server-side substring match against the item's real
+name — the one the server knows but never returns. That is what makes this cheap:
+following an item costs the pages that match the term (one for a narrow name,
+seven for `Poção`), not the ~260 a whole-market read takes. There is no
+TemplateID filter — `name=7015` returns nothing, and `type` only accepts a handful
+of category values, returning the entire market for anything else.
+
+The search was verified complete against a full sweep: for every TemplateID it
+returned, the search and the sweep agreed on the exact set of AuctionIDs, with
+none missing and none extra. Matching ignores case but **not** accents — `pocao`
+finds nothing, `poção` finds 333.
+
+Because one term can cover several items — `Poção` matches five TemplateIDs — the
+search lists them all and the bell picks. A term matching more than 1,500 listings
+is refused rather than paged through.
+
+The name cell is editable here too, so an item can be named from this tab and not
+only from the auction table. Naming redraws every surface that prints an item
+name at once: both tables, both watch lists, the top 10 and the notification
+history.
+
 ## Item names
 
 The DD Clássico server never returns item names, only a numeric `TemplateID` —

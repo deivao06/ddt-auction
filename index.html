@@ -521,6 +521,63 @@
 
   .chart-empty { padding: 26px; text-align: center; color: var(--ink-soft); font-size: 12px; }
 
+  /* An item row is two lines like a watched auction, but it counts listings
+     rather than naming one, so it gets its own shape instead of bending that
+     one until it fits both. */
+  .iwatch-row { display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
+  .iwatch-row:hover { background: rgba(232, 194, 104, .1); }
+
+  .iwatch-top { display: flex; align-items: center; gap: 6px; }
+
+  .iwatch-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--gold-300);
+    font-weight: 600;
+  }
+
+  .iwatch-sub { display: flex; gap: 8px; color: var(--parch-300); font-variant-numeric: tabular-nums; }
+  .iwatch-sub .avg { color: var(--gold-400); }
+
+  .iwatch-top .del { margin-left: auto; }
+
+  .iwatch-row .del {
+    flex: 0 0 auto;
+    padding: 0;
+    width: 17px; height: 17px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(176, 58, 46, .55);
+    color: var(--parch-100);
+    font-size: 11px;
+    line-height: 17px;
+  }
+  .iwatch-row .del:hover { background: var(--danger); }
+
+  /* ---- item tracking ---- */
+
+  #itemTerm { flex: 1 1 auto; }
+
+  /* The Item tab's table shares every rule with the first tab's: same header,
+     same cells, same bell. Only the columns differ. */
+  #itemWrap { margin-top: 2px; }
+
+  /* A heading inside the parchment, separating the sample history from the
+     listings below it. */
+  .item-head {
+    margin: 0 0 8px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+  .item-head + .chart-row { margin-top: 0; }
+  .item-sec { margin-top: 18px; }
+
   /* ---- chips and notices ---- */
   .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip-bar:not(:empty) { margin-bottom: 10px; }
@@ -849,6 +906,7 @@
 
   .bell svg { display: block; margin: 0 auto; fill: currentColor; }
 
+  .iwatch-row,
   .watch-row,
   .event {
     padding: 6px 8px;
@@ -858,6 +916,7 @@
     color: var(--parch-100);
   }
 
+  .iwatch-row + .iwatch-row,
   .watch-row + .watch-row,
   .event + .event { margin-top: 4px; }
 
@@ -1030,7 +1089,8 @@
 
         <div class="group">
           <section class="panel-sec">
-            <h2>Sem nome nesta página <span class="tag" id="missingCount">0</span></h2>
+            <h2>Sem nome <span id="missingWhere">nesta página</span>
+                <span class="tag" id="missingCount">0</span></h2>
             <div class="id-list list-scroll scroll" id="missingList"></div>
           </section>
 
@@ -1054,6 +1114,11 @@
             <h2>Vigiando <span class="tag" id="watchCount">0</span></h2>
             <div class="list-scroll scroll" id="watchList"></div>
           </section>
+
+          <section class="panel-sec">
+            <h2>Itens vigiados <span class="tag" id="itemWatchCount">0</span></h2>
+            <div class="list-scroll scroll" id="itemWatchList"></div>
+          </section>
         </div>
 
       </div>
@@ -1065,6 +1130,8 @@
                 aria-selected="true" aria-controls="paneTable" data-pane="paneTable">Tabela</button>
         <button type="button" class="tab" id="tabChart" role="tab"
                 aria-selected="false" aria-controls="paneChart" data-pane="paneChart">Gráficos</button>
+        <button type="button" class="tab" id="tabItem" role="tab"
+                aria-selected="false" aria-controls="paneItem" data-pane="paneItem">Item</button>
       </div>
 
       <div class="pane" id="paneTable" role="tabpanel" aria-labelledby="tabTable">
@@ -1103,6 +1170,31 @@
         <p class="chart-note" id="chartNote"></p>
 
         <div class="chart-wrap scroll" id="chartWrap"></div>
+      </div>
+
+      <div class="pane" id="paneItem" role="tabpanel" aria-labelledby="tabItem" hidden>
+        <form class="search" id="itemForm">
+          <input id="itemTerm" type="text" autocomplete="off"
+                 placeholder="nome do item no jogo (ex: Cristal)">
+          <button type="submit" class="btn" id="itemFind">Buscar</button>
+        </form>
+
+        <p class="chart-note" id="itemNote"></p>
+
+        <div class="table-wrap scroll" id="itemWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th class="mid">Anúncios</th>
+                <th class="mid">Unidades</th>
+                <th class="mid">Média <span class="unit">cupons/un</span></th>
+                <th class="mid"></th>
+              </tr>
+            </thead>
+            <tbody id="itemBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1399,16 +1491,43 @@ function renderHint(text, warn) {
   el.classList.toggle('warn', !!warn);
 }
 
-function renderPanel() {
-  // The same TemplateID shows up on several rows; naming it once fixes all.
-  const missing = [...new Set(rows.filter(r => isUnnamed(r.templateId)).map(r => r.templateId))]
-    .sort((a, b) => a - b);
+// What each tab has on screen, and what to call it. The chip scrolls to a cell
+// and opens it for editing, so a tab only belongs here if its item names are
+// editable — all three are.
+// What each tab has on screen, and what to call it. The chip scrolls to a cell
+// and opens it for editing, so a tab only belongs here if its item names are
+// editable — all three are. `idle` is separate from `empty` because "nothing
+// searched yet" and "everything already named" are not the same news.
+const PANE_SOURCE = {
+  paneTable: {
+    where: 'nesta página', empty: 'Tudo nomeado nesta página.',
+    ids: () => rows.map(r => r.templateId),
+  },
+  paneItem: {
+    where: 'nesta busca', empty: 'Tudo nomeado nesta busca.',
+    idle: () => !itemHits && 'Busque um item para ver o que falta nomear.',
+    ids: () => itemHits ? itemHits.groups.map(g => g.templateId) : [],
+  },
+  paneChart: {
+    where: 'no top 10', empty: 'Tudo nomeado no top 10.',
+    idle: () => !market && 'Carregue o mercado para ver o que falta nomear.',
+    ids: () => market ? market.items.slice(0, TOP_N).map(i => i.templateId) : [],
+  },
+};
 
+function renderPanel() {
+  const src  = PANE_SOURCE[pane] ?? PANE_SOURCE.paneTable;
+  const idle = src.idle?.();
+
+  // The same TemplateID shows up on several rows; naming it once fixes all.
+  const missing = [...new Set(src.ids().filter(isUnnamed))].sort((a, b) => a - b);
+
+  document.getElementById('missingWhere').textContent = src.where;
   document.getElementById('missingCount').textContent = missing.length;
   document.getElementById('missingList').innerHTML = missing.length
     ? missing.map(id => `<button type="button" class="id-chip" data-goto="${id}"`
         + ` title="Ir até o item e nomear">#${id}</button>`).join('')
-    : '<span class="empty">Tudo nomeado nesta página.</span>';
+    : `<span class="empty">${idle || src.empty}</span>`;
 
   const ids = [...new Set([...Object.keys(defaultNames), ...Object.keys(localNames)])]
     .map(Number).filter(Number.isFinite).sort((a, b) => a - b);
@@ -1480,17 +1599,23 @@ function renderEvents() {
         + `<span class="event-head">`
           + (e.auctionId ? `Leilão #${e.auctionId} · ` : '')
           + `${esc(label(e))}`
-          + (e.seller ? ` <span class="event-seller">de ${esc(e.seller)}</span>` : '')
+          + (e.seller ? ` <span class="event-seller">de jogador ${esc(e.seller)}</span>` : '')
         + `</span>`
         + `<span class="event-text">${esc(e.text)}</span>`
       + `</div>`).join('')
     : '<span class="empty">Nada ainda.</span>';
 }
 
+// Every surface that prints an item name redraws together, so naming one in
+// any of them fixes it everywhere at once — the table, the Item tab, both
+// watch lists, the top 10 and the notification history.
 function redraw() {
   renderRows();
+  renderItemTable();
   renderPanel();
   renderWatch();
+  renderItemWatch();
+  renderChart();
   renderEvents();
 }
 
@@ -1577,6 +1702,257 @@ function importNames(text) {
     + (same ? ` ${same} já valia(m).` : '')
     + (bad  ? ` ${bad} ignorado(s) por formato.` : ''), !added);
 }
+
+/* ---------- item tracking ---------- */
+
+// The `name` parameter is a server-side substring match on the item's real name
+// — the one the server knows but never returns. Verified complete against a full
+// sweep: for every TemplateID it returned, the search and the sweep agreed on
+// the exact set of AuctionIDs. That is what makes following an item cheap — a
+// handful of pages per poll instead of the ~260 a whole-market read costs.
+const LS_ITEMS      = 'ddah:items';
+const ITEM_MAX_ROWS = 1500;   // wider than this is a term, not an item
+
+let tracked  = {};     // templateId -> { templateId, term, auctions, last }
+let itemHits = null;   // { term, groups } from the last search
+let itemTimer = null;
+let itemBusy  = false;
+
+const saveItems = () => saveJson(LS_ITEMS, tracked);
+
+function itemNote(text, warn) {
+  const el = document.getElementById('itemNote');
+  el.textContent = text;
+  el.classList.toggle('warn', !!warn);
+}
+
+// Serial paging, like fetchSeller: a name search is a few pages, and the point
+// of using it is precisely to not open a flood of connections.
+async function fetchByName(term) {
+  const rows = [];
+  let page = 1, total = Infinity;
+
+  while ((page - 1) * PAGE_SIZE < total && page <= Math.ceil(ITEM_MAX_ROWS / PAGE_SIZE)) {
+    const p = new URLSearchParams({
+      page, name: term, type: -1, pay: -1, userID: -1, buyID: -1,
+      order: 4, sort: true, Auctions: '',
+    });
+    const res = await fetch(ENDPOINT + '?' + p);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const parsed = parse(await res.text());
+
+    if (page === 1 && parsed.total > ITEM_MAX_ROWS) {
+      throw new Error(`"${term}" casa com ${money(parsed.total)} anúncios. Seja mais específico.`);
+    }
+    rows.push(...parsed.rows);
+    total = parsed.total;
+    page++;
+  }
+  return rows;
+}
+
+// One term can cover several items — "Poção" matches five TemplateIDs — so the
+// search offers them and the person says which one.
+async function searchItem(term) {
+  itemNote('Buscando…');
+  try {
+    const rows = await fetchByName(term);
+    const by = new Map();
+    for (const r of rows) {
+      const g = by.get(r.templateId)
+        ?? { templateId: r.templateId, listings: 0, units: 0, asked: 0 };
+      g.listings++; g.units += r.count; g.asked += r.price;
+      by.set(r.templateId, g);
+    }
+    for (const g of by.values()) g.perUnit = g.units ? g.asked / g.units : 0;
+    itemHits = { term, groups: [...by.values()].sort((a, b) => b.listings - a.listings) };
+    itemNote(itemHits.groups.length
+      ? `${money(rows.length)} anúncios, ${itemHits.groups.length} item(ns). Toque no sino para vigiar.`
+      : `Nada encontrado para "${term}". O nome é o do servidor, e acento conta.`,
+      !itemHits.groups.length);
+  } catch (err) {
+    itemHits = null;
+    itemNote(err.message, true);
+  }
+  renderItemTable();
+  renderPanel();   // the search just changed which ids are on screen
+}
+
+// The same bell as the auction table, keyed on a TemplateID instead: one
+// affordance to learn, in both places it appears.
+function itemBell(templateId) {
+  const on = !!tracked[templateId];
+  return `<button type="button" class="bell ${on ? 'on' : ''}" data-track="${templateId}"`
+    + ` title="${on ? 'Parar de vigiar este item' : 'Vigiar este item'}">`
+    + `<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">`
+    + `<path d="${BELL_PATH}"/></svg></button>`;
+}
+
+function renderItemTable() {
+  const body = document.getElementById('itemBody');
+
+  if (!itemHits) {
+    body.innerHTML = '<tr><td colspan="5" class="msg">Busque um item pelo nome do jogo.</td></tr>';
+    return;
+  }
+  if (!itemHits.groups.length) {
+    body.innerHTML = `<tr><td colspan="5" class="msg">Nada para "${esc(itemHits.term)}".</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = itemHits.groups.map(g => '<tr>'
+    // The same editable cell as the first tab, so an item can be named from
+    // here too instead of only where the auctions are listed.
+    + `<td class="name">`
+      + `<span class="item-name" data-id="${g.templateId}" title="Clique para nomear este item">`
+        + `${esc(itemName(g.templateId))}</span>`
+      + `<div class="muted">#${g.templateId}</div></td>`
+    + `<td class="mid">${money(g.listings)}</td>`
+    + `<td class="mid">${money(g.units)}</td>`
+    + `<td class="mid">${unitPrice(g.perUnit)}</td>`
+    + `<td class="mid">${itemBell(g.templateId)}</td>`
+  + '</tr>').join('');
+}
+
+function trackItem(templateId) {
+  if (!tracked[templateId]) {
+    tracked[templateId] = { templateId, term: itemHits.term, auctions: {}, last: null };
+    saveItems();
+  }
+  renderItemTable();
+  renderItemWatch();
+  scheduleItem();
+  runItemPoll();
+}
+
+function untrackItem(templateId) {
+  delete tracked[templateId];
+  saveItems();
+  renderItemTable();
+  renderItemWatch();
+  renderItem();
+  scheduleItem();
+}
+
+function renderItemWatch() {
+  const list = Object.values(tracked);
+  document.getElementById('itemWatchCount').textContent = list.length;
+  document.getElementById('itemWatchList').innerHTML = list.length
+    ? list.map(t => {
+        const s = t.last;
+        return `<div class="iwatch-row" data-focus="${t.templateId}"`
+          + ` title="Ver o histórico deste item">`
+          + `<div class="iwatch-top">`
+            + `<span class="iwatch-name">${esc(itemName(t.templateId))}</span>`
+            + `<button type="button" class="del" data-untrack="${t.templateId}"`
+              + ` title="Parar de vigiar este item">✕</button>`
+          + `</div>`
+          + `<div class="iwatch-sub">`
+            + (s ? `<span>${money(s.listings)} anúncios</span>`
+                 + `<span>${money(s.units)} un</span>`
+                 + `<span class="avg">~${unitPrice(s.perUnit)} cup/un</span>`
+                 : `<span>lendo…</span>`)
+          + `</div>`
+        + `</div>`;
+      }).join('')
+    : '<span class="empty">Busque um item na aba Item para vigiar.</span>';
+}
+
+// Mirrors compare(): the same three transitions, keyed on the item's listings
+// instead of one watched auction. The seeding pass is silent — announcing 119
+// "new listings" the moment you start following something is noise, not news.
+function applyItemRows(item, rows) {
+  const seeding = !item.last;
+  const live = new Map(rows.map(r => [r.auctionId, r]));
+
+  for (const [id, w] of Object.entries(item.auctions)) {
+    if (live.has(+id)) continue;
+    const ended = w.endsAt !== null && Date.now() >= w.endsAt - 60e3;
+    pushEvent(w, ended
+      ? (w.buyerId
+          ? `Encerrado: ${money(w.count)} un arrematadas por ${w.buyerName} a ${coupons(w.price)}.`
+          : `Encerrado sem lances: ${money(w.count)} un por ${coupons(w.price)}`
+            + (w.mouthful ? `, fixo ${money(w.mouthful)}.` : '.'))
+      // Bought or withdrawn cannot be told apart from the listing alone, so the
+      // text says both instead of picking one and being wrong half the time.
+      : `Saiu da listagem: ${money(w.count)} un`
+        + (w.mouthful ? ` a ${coupons(w.mouthful)} no preço fixo` : ` com lance de ${coupons(w.price)}`)
+        + ' — comprado ou removido.');
+    delete item.auctions[id];
+  }
+
+  for (const r of rows) {
+    const w = item.auctions[r.auctionId];
+
+    if (!w) {
+      if (!seeding) {
+        pushEvent(r, `Novo anúncio: ${money(r.count)} un por ${coupons(r.price)}`
+          + (r.mouthful ? `, fixo ${money(r.mouthful)}` : '') + '.');
+      }
+      item.auctions[r.auctionId] = snapshot(r);
+      continue;
+    }
+
+    if (r.buyerId !== w.buyerId || r.price !== w.price) {
+      pushEvent(r, r.buyerId && r.buyerId !== w.buyerId
+        ? `${r.buyerName} lançou ${coupons(r.price)} em ${money(r.count)} un.`
+        : `Novo lance: ${coupons(r.price)}.`);
+    }
+    Object.assign(w, {
+      buyerId: r.buyerId, buyerName: r.buyerName,
+      price: r.price, mouthful: r.mouthful, endsAt: r.endsAt,
+    });
+  }
+
+  const units = rows.reduce((s, r) => s + r.count, 0);
+  const asked = rows.reduce((s, r) => s + r.price, 0);
+  item.last = { at: Date.now(), listings: rows.length, units,
+                perUnit: units ? asked / units : 0 };
+  saveItems();
+}
+
+async function runItemPoll() {
+  const list = Object.values(tracked);
+  if (!list.length || itemBusy) return;
+  itemBusy = true;
+
+  // Grouped by term, because one search already covers every item it matched:
+  // following three kinds of Poção costs one round of requests, not three.
+  const byTerm = new Map();
+  for (const t of list) {
+    if (!byTerm.has(t.term)) byTerm.set(t.term, []);
+    byTerm.get(t.term).push(t);
+  }
+
+  let failed = 0;
+  for (const [term, group] of byTerm) {
+    // One term failing must not stop the others.
+    let rows;
+    try { rows = await fetchByName(term); }
+    catch { failed++; continue; }
+    for (const t of group) {
+      applyItemRows(t, rows.filter(r => r.templateId === t.templateId));
+    }
+  }
+
+  itemBusy = false;
+  renderItemWatch();
+  renderItem();
+
+  itemNote(failed
+    ? `${failed} busca(s) falharam nesta leitura.`
+    : `Vigiando ${money(list.length)} item(ns) · relendo a cada`
+      + ` ${Math.round(POLL_MS / 60e3)} min.`, !!failed);
+}
+
+function scheduleItem() {
+  clearInterval(itemTimer);
+  if (Object.keys(tracked).length) itemTimer = setInterval(runItemPoll, POLL_MS);
+}
+
+// No history chart here any more: the tab is a table, and what the side panel
+// needs from a reading is the latest state, not a series.
+function renderItem() { renderItemTable(); }
 
 /* ---------- market chart ---------- */
 
@@ -1689,7 +2065,7 @@ function renderChart() {
     return `<div class="chart-row" title="${esc(name)} — ${money(it.units)} unidades`
          + ` em ${money(it.listings)} anúncio(s), ${share}% das unidades à venda.`
          + ` Média de ${avg} cupons por unidade.">`
-      + `<div class="chart-label">${esc(name)}</div>`
+      + `<div class="chart-label item-name" data-id="${it.templateId}">${esc(name)}</div>`
       + `<div class="chart-track">`
         + `<div class="chart-fill" style="width: ${(100 * it.units / max).toFixed(1)}%"></div>`
       + `</div>`
@@ -1717,6 +2093,7 @@ async function runSweep() {
     chartNote(`${money(market.auctions)} anúncios em ${money(market.pages)} páginas,`
             + ` ${money(market.items.length)} itens distintos. Lido às ${clock(market.at)}.`);
     renderChart();
+    renderPanel();   // the top 10 just changed which ids are on screen
   } catch (err) {
     chartNote(err.name === 'AbortError'
       ? 'Leitura cancelada.'
@@ -1727,13 +2104,19 @@ async function runSweep() {
   }
 }
 
+// Which tab is showing, because the naming panel follows it: the ids worth
+// naming are the ones on screen, and each tab puts a different set there.
+let pane = 'paneTable';
+
 function showPane(paneId) {
+  pane = paneId;
   document.querySelectorAll('.tab').forEach(t => {
     const on = t.dataset.pane === paneId;
     t.classList.toggle('is-on', on);
     t.setAttribute('aria-selected', String(on));
   });
   document.querySelectorAll('.pane').forEach(p => { p.hidden = p.id !== paneId; });
+  renderPanel();
 }
 
 /* ---------- watching ---------- */
@@ -1825,6 +2208,19 @@ function askPermission() {
 // top of it. Denying permission costs you the popup, not the record.
 // Text is stored raw and escaped at render time, because a Notification body is
 // plain text: escaping up front would show "Fulano&lt;3" in the popup.
+// Redrawing is pushEvent's job, not the caller's. It used to be the caller's,
+// and the item poll forgot: events were stored and the popup fired, but the
+// panel only caught up on the next reload, when it is read back from storage.
+// Coalesced through a microtask so a poll that produces a dozen events still
+// rebuilds the list once, after the whole batch has landed.
+let eventsDirty = false;
+
+function flushEvents() {
+  if (!eventsDirty) return;
+  eventsDirty = false;
+  renderEvents();
+}
+
 function pushEvent(w, text) {
   // templateId, not the resolved name: naming the item later then fixes the
   // whole history retroactively instead of leaving old entries saying "Item #".
@@ -1833,12 +2229,15 @@ function pushEvent(w, text) {
   events = events.slice(0, MAX_EVENTS);
   saveEvents();
 
+  eventsDirty = true;
+  queueMicrotask(flushEvents);
+
   if ('Notification' in window && Notification.permission === 'granted') {
     // The title identifies which listing, the body says what happened. A system
     // notification truncates hard, so the identity has to be in the title.
     try {
       new Notification(`Leilão #${w.auctionId}`, {
-        body: `${itemLabel(w.templateId, w.count)} de ${w.seller} — ${text}`,
+        body: `${itemLabel(w.templateId, w.count)} de jogador ${w.seller} — ${text}`,
         tag: 'ddah-' + w.auctionId,
       });
     } catch { /* some browsers refuse outside a user gesture */ }
@@ -1877,7 +2276,8 @@ function compare(w, now) {
     pushEvent(w, expired
       ? (w.buyerId
           ? `Leilão encerrado. Arrematado por ${w.buyerName} a ${coupons(w.price)}.`
-          : 'Leilão encerrado sem lances.')
+          : `Leilão encerrado sem lances. Estava por ${coupons(w.price)}`
+            + (w.mouthful ? `, fixo ${money(w.mouthful)}.` : '.'))
       : `Comprado direto${w.mouthful ? ' por ' + coupons(w.mouthful) : ''}.`);
     delete watched[w.auctionId];
     return;
@@ -2101,11 +2501,16 @@ document.getElementById('head').addEventListener('click', e => {
   refresh();
 });
 
-// Shared by the seller cell in the table and the seller in the watch list, so
-// the two cannot drift into filtering differently.
+// Shared by the seller cell in the table, the seller in the watch list and the
+// notification rows, so they cannot drift into filtering differently.
 function filterBySeller(el) {
   const id = +el.dataset.id;
   if (!id) return; // without a usable ID, filtering by 0 would return nothing
+
+  // The filtered listing only exists on the first tab, so filtering from
+  // anywhere else has to bring the person there — otherwise the click looks
+  // like it did nothing.
+  showPane('paneTable');
   state.sellerId   = id;
   state.sellerName = el.dataset.name;
   // Mirror it into the field: without this the next search would see an empty
@@ -2138,7 +2543,10 @@ document.getElementById('chipBar').addEventListener('click', e => {
 document.getElementById('missingList').addEventListener('click', e => {
   const chip = e.target.closest('[data-goto]');
   if (!chip) return;
-  const cell = document.querySelector(`.item-name[data-id="${chip.dataset.goto}"]`);
+  // Scoped to the open tab: the same TemplateID has a cell in more than one
+  // pane, and an unscoped query would scroll a hidden one.
+  const cell = document.querySelector(
+    `.pane:not([hidden]) .item-name[data-id="${chip.dataset.goto}"]`);
   if (!cell) return;
   cell.scrollIntoView({ block: 'center', behavior: 'smooth' });
   startEdit(cell);
@@ -2161,6 +2569,42 @@ document.querySelector('.tabs').addEventListener('click', e => {
 });
 
 document.getElementById('chartRun').addEventListener('click', runSweep);
+
+document.getElementById('chartWrap').addEventListener('click', e => {
+  const nameCell = e.target.closest('.item-name');
+  if (nameCell) startEdit(nameCell);
+});
+
+document.getElementById('itemForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const term = document.getElementById('itemTerm').value.trim();
+  if (term) searchItem(term);
+});
+
+document.getElementById('itemWrap').addEventListener('click', e => {
+  const bellBtn = e.target.closest('[data-track]');
+  if (bellBtn) {
+    const id = +bellBtn.dataset.track;
+    return tracked[id] ? untrackItem(id) : trackItem(id);
+  }
+  const nameCell = e.target.closest('.item-name');
+  if (nameCell) startEdit(nameCell);
+});
+
+document.getElementById('itemWatchList').addEventListener('click', e => {
+  const stop = e.target.closest('[data-untrack]');
+  if (stop) return untrackItem(+stop.dataset.untrack);
+
+  // Clicking the row opens the Item tab on that item's own search, so the
+  // panel is a way back in rather than a dead readout.
+  const row = e.target.closest('[data-focus]');
+  if (!row) return;
+  const t = tracked[+row.dataset.focus];
+  if (!t) return;
+  showPane('paneItem');
+  document.getElementById('itemTerm').value = t.term;
+  searchItem(t.term);
+});
 
 document.getElementById('exportBtn').addEventListener('click', exportNames);
 
@@ -2215,11 +2659,14 @@ document.getElementById('next').addEventListener('click', () => {
   document.getElementById('history').open = wide;
 
   localNames   = loadLocal();
+  tracked      = loadJson(LS_ITEMS, {});
   watched      = loadJson(LS_WATCH, {});
   events       = loadJson(LS_EVENTS, []);
   defaultNames = await loadDefaults();
 
   renderChart();
+  renderItem();
+  renderItemWatch();
 
   renderHint(defaultsFailed
     ? 'names.json não carregou — abrindo por file://? Só os nomes deste navegador estão ativos.'
@@ -2233,6 +2680,11 @@ document.getElementById('next').addEventListener('click', () => {
   schedulePoll();
   checkEndingSoon();
   poll();
+
+  // Watched items survive the tab being closed and pick up whatever happened
+  // while it was, exactly like the watched auctions above.
+  scheduleItem();
+  runItemPoll();
 })();
 </script>
 </body>
