@@ -1037,9 +1037,17 @@
     /* Drop the two columns that earn the least width here. Quantity is already
        printed as "x400" beside the name, and the auction ID is not what you
        scan for on a phone — both stay one tap away by rotating or scrolling.
-       This buys the room for price, which is the whole point of the table. */
-    thead th:nth-child(1), tbody td:nth-child(1),
-    thead th:nth-child(3), tbody td:nth-child(3) { display: none; }
+       This buys the room for price, which is the whole point of the table.
+
+       Scoped to #tableWrap on purpose: by position these are ID and Quantidade
+       in the auction table, but Nome and Unidades in the Item tab's, and
+       hiding the name there leaves rows that identify nothing. */
+    #tableWrap thead th:nth-child(1), #tableWrap tbody td:nth-child(1),
+    #tableWrap thead th:nth-child(3), #tableWrap tbody td:nth-child(3) { display: none; }
+
+    /* The Item tab drops Unidades instead: the listing count and the average
+       are what the row is for, and the name has to stay. */
+    #itemWrap thead th:nth-child(3), #itemWrap tbody td:nth-child(3) { display: none; }
 
     /* Reclaim width so the remaining columns fit without sliding the table:
        tighter cells, a shorter floor for the name, headers allowed to wrap
